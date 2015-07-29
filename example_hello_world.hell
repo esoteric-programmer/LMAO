@@ -1,0 +1,361 @@
+/*
+ *	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an
+ *	assembler for Malbolge.
+ *	Copyright (C) 2013 Matthias Ernst
+ *
+ *	LMAO is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	LMAO is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	E-Mail: info@matthias-ernst.eu
+ *
+ *
+ * Example in HeLL: Printing out a string using loops.
+ *
+ * This HeLL program prints out a String by reading it character by character
+ * from an array. This consumes much more memory of the virtual Malbolge
+ * machine than other well known methods for printing out a string in Malbolge.
+ * But it demonstrates how to use conditional branches and loops. Thus, this
+ * program could be extended to something like the 99 bottles of beer program.
+ *
+ * The main techniques used by the code below came from reverse engineering
+ * of the 99 bottles of beer program by Hisashi Iizawa et al.
+ * http://www.99-bottles-of-beer.net/language-malbolge-995.html
+ */
+
+.DATA
+// The string that will be printed out. Each character must be followed by
+// data_read, but the last character must be followed by last_data_read.
+// Notice that "abc",D is equvalent to 'a' D 'b' D 'c'
+STRING:
+	"Hello, World!\n", data_read
+	last_data_read
+
+.CODE
+FLAG1:
+	Nop/MovD
+	Jmp
+
+FLAG2:
+	Nop/MovD
+	Jmp
+
+FLAG3:
+	Nop/MovD
+	Jmp
+
+MOVED:
+	MovD/Nop
+	Jmp
+
+LOOP2:
+	MovD/Nop
+	Jmp
+
+LOOP2_2:
+	Nop/MovD
+	Jmp
+
+LOOP2_3:
+	Nop/MovD
+	Jmp
+
+LOOP5:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+LOOP4:
+	Nop/Nop/Nop/MovD
+	Jmp
+
+
+NO_MORE_CARRY_FLAG:
+	Nop/MovD
+	Jmp
+
+NO_MORE_DATA_FLAG:
+	Nop/MovD
+	Jmp
+
+
+NOP:
+	Jmp
+
+CRAZY:
+	Opr/Nop
+	Jmp
+
+ROT:
+	Rot/Nop
+	Jmp
+
+HALT:
+	Hlt
+
+OUT:
+	Out/Nop
+	Jmp
+
+LOAD_CHARACTER: 
+	; Move D register to the address the string pointer points to.
+	MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop
+	RNop
+	RNop
+	; Load the current character of the string with the Opr instruction.
+	Opr/Nop/Nop/Nop/Nop/Rot/Nop/Nop/Nop
+; label for xlat2 restoring the above Opr-command.
+PARTIAL_R_LOAD_CHARACTER:
+	; Move D register to data_read or last_data_read (see STRING)
+	MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop
+	Jmp
+
+@C21 CARRY:
+	; The carry variable may be C20 or C21. By executing the code at the
+	; carry address the increment of the D register until reaching the
+	; Jmp instruction differs. This is used for conditional branching
+	; dependent on the value of the carry.
+	; RNop at C21
+	RNop
+	; RNop at C2
+	RNop
+	; Jmp at C0
+	Jmp
+
+
+
+
+.DATA
+
+// ******************** \\
+// Variable definitions \\
+// ******************** \\
+
+
+// var string_ptr
+// string ptr: points to the character of the string that should be printed out
+// the next time
+crazy_string_ptr:
+	U_CRAZY string_ptr
+load_character_string_ptr:
+	U_LOAD_CHARACTER string_ptr
+rot_string_ptr:
+	U_ROT string_ptr
+string_ptr:
+	STRING-2
+	FLAG1 return_from_string_ptr_1 R_FLAG1
+	FLAG2 return_from_string_ptr_2 R_FLAG2
+
+// var carry
+// carry: stores while incrementing the string_ptr whether the next trit has
+// to be incremented also or not.
+crazy_carry:
+	U_CRAZY carry
+carry:
+	CARRY
+	U_NOP execution_not_jumped_to_carry
+	U_NOP carry_was_not_set
+	U_NOP carry_was_set
+carry_was_set:
+	R_MOVED
+	MOVED return_carry_was_set
+carry_was_not_set:
+	R_MOVED
+	MOVED return_carry_was_not_set
+execution_not_jumped_to_carry:
+	FLAG1 return_from_carry_1 R_FLAG1
+
+
+// var tmp
+// tmp: used during increment
+crazy_tmp:
+	U_CRAZY tmp
+tmp:
+	C0 // must not contain any trit that is 2.
+	FLAG1 return_from_tmp_1 R_FLAG1
+	FLAG2 return_from_tmp_2 R_FLAG2
+
+
+
+// ******************** \\
+//     Program code     \\
+// ******************** \\
+
+
+// Increment string_ptr twice to point to the next character
+// Code sequence to increment the last trit of the memory cell "value":
+// 
+// SET tmp = C0
+// SET carry = C20 or C21
+// ROT C2
+// OPR value
+// OPR tmp
+// OPR carry
+// OPR value
+// OPR tmp
+// OPR carry
+// if (carry == C20){
+//   // carry is set
+// }else if (carry == C21){
+//   // no carry
+// }
+//
+// After the lowest trit has been incremented, the variable has to be rotated.
+// Depending on the carry, the increment has to be done again or not.
+// After 10 rotates the variable is incremented.
+;
+// To increment string_ptr by 2, these steps will be executed twice.
+increment_string_ptr:
+	R_MOVED
+	// We have to set tmp to C0. It won't contain any trit that is 2,
+	// so we can just crazy C1 into tmp.
+set_tmp_to_C0:
+	ROT C1 R_ROT
+	R_FLAG1 // set return flag
+	MOVED crazy_tmp // crazy C1 into tmp variable to set it to C0
+
+return_from_tmp_1:
+	R_CRAZY R_MOVED
+	ROT C2 R_ROT // load C2 to A register
+	// now we have to execute the command sequence
+	//   OPR value
+	//   OPR tmp
+	//   OPR carry
+	// twice.
+crazy_loop_increment_string_ptr:
+	//the following sequence must be executed twice;
+	//label for loop
+	R_FLAG1 // set return flag
+	MOVED crazy_string_ptr // crazy A register into tmp variable
+
+return_from_string_ptr_1:
+	R_MOVED R_CRAZY
+	R_FLAG2 // set return flag
+	MOVED crazy_tmp // crazy into tmp variable
+
+return_from_tmp_2:
+	R_CRAZY R_MOVED
+	R_FLAG1 // set return flag
+	MOVED crazy_carry // crazy into carry variable
+
+{
+return_from_carry_1:
+	R_CRAZY R_MOVED
+	// check loop condition
+	LOOP2 crazy_loop_increment_string_ptr
+
+	MOVED carry 
+return_carry_was_not_set:
+	R_NO_MORE_CARRY_FLAG
+return_carry_was_set:
+	R_MOVED
+	// rotate string_ptr until it has been rotated 10 times.
+	// after rotating go to increment or rotate again corresponding to
+	// the NO_MORE_CARRY_FLAG
+	R_FLAG2 // set return flag
+	MOVED rot_string_ptr // rot string_ptr
+}
+
+return_from_string_ptr_2:
+	R_MOVED R_ROT
+	// exit loop after 5 times
+	LOOP5 exit_inner_increment_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_string_ptr
+	R_NO_MORE_CARRY_FLAG
+	MOVED increment_string_ptr
+
+exit_inner_increment_loop:
+	// exit loop after 2 times
+	LOOP2_2 exit_increment_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_string_ptr
+	R_NO_MORE_CARRY_FLAG
+	MOVED increment_string_ptr
+
+restore_no_more_carry_flag_and_rotate_string_ptr:
+	R_NO_MORE_CARRY_FLAG
+	MOVED carry_was_set
+
+
+exit_increment_loop:
+	NO_MORE_CARRY_FLAG nomorecarrykilled
+	R_NO_MORE_CARRY_FLAG
+nomorecarrykilled:
+	LOOP2_3 ENTRY
+	MOVED increment_string_ptr
+
+
+
+
+// read character at string_ptr and print it out
+ENTRY: 
+	// load character at string_ptr
+	ROT C2 R_ROT
+	MOVED load_character_string_ptr
+
+{
+	// return labels for load_character_string_ptr-function
+	// (see definition of STRING)
+last_data_read:
+	// force NO_MORE_DATA_FLAG to be set
+	NO_MORE_DATA_FLAG last_data_read
+	// after the flag is set, the last character is read in as any other
+	// character
+
+data_read: restore_load_character:
+	R_MOVED
+restore_load_character_no_r_moved:
+	// restore LOAD_CHARACTER code. This is a bit tricky and requires
+	// 2 loops.
+	// 9-cycles in LOAD_CHARACTER;
+	// containing evil cycle Opr/Nop/Nop/Nop/Nop/Rot/Nop/Nop/Nop
+	// the Rot operation MUST NOT BE executed during restoring,
+	// because this would override the character we read into the
+	// A register
+	// the PARTIAL_R_LOAD_CHARACTER-restore-opration prevents executing
+	// the Rot command, but the full command has to be restored 9 times,
+	// too.
+	PARTIAL_R_LOAD_CHARACTER ?-
+	R_LOAD_CHARACTER ?- ?- ?- ?-
+	LOOP4 half_of_restore_load_character_done
+	// continue restoring
+	MOVED restore_load_character
+}
+
+half_of_restore_load_character_done:
+	// quit at second call
+	LOOP2_2 restore_load_character_done
+	// destroy PARTIAL restored LOAD_CHARACTER, so the LOOP4-loop
+	// can restore the whole command sequence
+	PARTIAL_R_LOAD_CHARACTER
+	// render meanwhile restored MovD command harmless
+	// continue restoring
+	restore_load_character_no_r_moved
+
+{
+restore_load_character_done:
+	// we crazied C2 into a character at position (string_ptr+2).
+	// we must do this twice to read the original character.
+	LOOP2 ENTRY
+
+	// we copied the character at position (string_ptr+2) into the
+	// A register. Now we will print it out.
+	OUT ?- R_OUT
+	// if it was the last character of the string, we will go to the
+	// label whole_string_printed and terminate the program
+	NO_MORE_DATA_FLAG whole_string_printed R_NO_MORE_DATA_FLAG
+	// if it was not the last character, we have to increment
+	// string_ptr (twice) to point to the next character
+	MOVED increment_string_ptr
+}
+
+whole_string_printed:
+	HALT
+

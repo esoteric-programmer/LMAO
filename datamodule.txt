@@ -1,0 +1,65 @@
+
+This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
+Copyright (C) 2013 Matthias Ernst
+
+LMAO is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+LMAO is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+E-Mail: info@matthias-ernst.eu
+
+
+Constant generation data module:
+
+33: C0
+34: C1
+35: C21
+36: VALUE1
+37: C2
+38: 35
+39: 32
+40: 93
+
+48: C0
+49: C1
+50: C21
+51: VALUE3
+52: C2
+53: 50
+54: 47
+55: 93
+
+71: C0
+72: C1
+73: C21
+74: VALUE2
+75: C2
+76: 73
+77: 70
+78: 93
+
+82: C0
+83: 93
+84: 33
+85: 71
+86: 48
+87: C1
+88: TMP (all trits must be 0 or 1)
+89: 0t2222000022
+90: 0t2222200022
+91: 0t2222220022
+92: 0t2222222022
+93: C2
+94: DESTINATION
+95: 87
+96: 81
+

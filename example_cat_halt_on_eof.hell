@@ -1,0 +1,481 @@
+/*
+ *	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
+ *	Copyright (C) 2013 Matthias Ernst
+ *
+ *	LMAO is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	LMAO is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	E-Mail: info@matthias-ernst.eu
+ *
+ *
+ * Example in HeLL: This is a cat program in HeLL that halts on EOF.
+ */
+
+.CODE
+// +-----------------------------------+ \\
+// | LIST OF MALBOLGE COMMANDS WE NEED | \\
+// +-----------------------------------+ \\
+
+// *** normal commands *** \\
+MOVED:
+	MovD/Nop
+	Jmp
+
+ROT:
+	Rot/Nop
+	Jmp
+
+IN:
+	In/Nop
+	Jmp
+
+OUT:
+	Out/Nop
+	Jmp
+
+CRAZY:
+	Opr/Nop
+	Jmp
+
+HALT:
+	Hlt // need not be loop resistant.
+
+NOP:
+	Jmp // will immideately start execution of the command specified by the next .DATA memory cell
+
+
+// *** flags *** \\
+
+// use FLAGs to save our position when calling MOVED to operate on a variable (tmp1, tmp2, tmp3 or tmp4).
+FLAG1:
+	Nop/MovD
+	Jmp
+
+FLAG2:
+	Nop/MovD
+	Jmp
+
+FLAG3:
+	Nop/MovD
+	Jmp
+
+FLAG4:
+	Nop/MovD
+	Jmp
+
+FLAG5:
+	Nop/MovD
+	Jmp
+
+FLAG6:
+	Nop/MovD
+	Jmp
+
+FLAG7:
+	Nop/MovD
+	Jmp
+
+FLAG8:
+	Nop/MovD
+	Jmp
+
+FLAG9:
+	Nop/MovD
+	Jmp
+
+FLAG10:
+	Nop/MovD
+	Jmp
+
+FLAG11:
+	Nop/MovD
+	Jmp
+
+
+// *** loop counters *** \\
+
+// to build loops which are executed twice: use xlat2 at this label
+COUNTER2_1:
+	MovD/Nop
+	Jmp
+
+COUNTER2_2:
+	Nop/MovD
+	Jmp
+
+COUNTER5_1:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+
+// tmp4 will be brought to C20 if it was not C2 (EOF), otherwise it will be C21.
+// to detect the value of tmp4, we will jmp (i) to its value.
+// the handling is following here: depending on the result the d register will move 1 or 2 steps until execution will be continued by Jmp.
+.OFFSET C21
+LABEL:
+	RNop
+	RNop
+	Jmp
+
+
+.DATA
+// +-----------------------------------------+ \\
+// | DECLARATION/INITIALIZATION OF VARIABLES | \\
+// +-----------------------------------------+ \\
+//
+// variables (tmp1, tmp2, tmp3 and tmp4), their functions to modify them,
+// and checking FLAGn for return selection.
+tmp1_crazy:
+	U_CRAZY tmp1
+tmp1:
+	?
+	FLAG1 return_from_tmp1_1 R_FLAG1
+	FLAG2 return_from_tmp1_2 R_FLAG2
+
+tmp2_rot:
+	U_ROT tmp2
+tmp2_crazy:
+	U_CRAZY tmp2
+tmp2:
+	?
+	FLAG1 return_from_tmp2_1 R_FLAG1
+	FLAG2 return_from_tmp2_2 R_FLAG2
+	FLAG3 return_from_tmp2_3 R_FLAG3
+	FLAG4 return_from_tmp2_4 R_FLAG4
+	FLAG5 return_from_tmp2_5 R_FLAG5
+
+tmp3_crazy:
+	U_CRAZY tmp3
+tmp3:
+	?
+	FLAG1 return_from_tmp3_1 R_FLAG1
+	FLAG2 return_from_tmp3_2 R_FLAG2
+
+tmp4_crazy:
+	U_CRAZY tmp4
+tmp4:
+	?
+	U_NOP skip_nop_detection
+	U_NOP tmp4_was_C21
+	U_NOP tmp4_was_C20
+tmp4_was_C21:
+	HALT
+tmp4_was_C20:
+	R_MOVED
+	MOVED NO_EOF_READ
+skip_nop_detection:
+	FLAG1 return_from_tmp4_1 R_FLAG1
+	FLAG2 return_from_tmp4_2 R_FLAG2
+	FLAG3 return_from_tmp4_3 R_FLAG3
+	FLAG4 return_from_tmp4_4 R_FLAG4
+	FLAG5 return_from_tmp4_5 R_FLAG5
+	FLAG6 return_from_tmp4_6 R_FLAG6
+	FLAG7 return_from_tmp4_7 R_FLAG7
+	FLAG8 return_from_tmp4_8 R_FLAG8
+	FLAG9 return_from_tmp4_9 R_FLAG9
+	FLAG10 return_from_tmp4_10 R_FLAG10
+
+{
+next_char:
+	R_MOVED // restore MovD command
+
+
+// +---------------------------------------------+ \\
+// | ENTRY POINT: Program execution starts here! | \\
+// +---------------------------------------------+ \\
+ENTRY:
+	// bring tmp1 to C1:
+	// load C1
+	ROT C1 R_ROT
+do_crzy_tmp1:
+	// set return position: FLAG1
+	R_FLAG1
+	// crazy tmp1
+	MOVED tmp1_crazy
+}{
+return_from_tmp1_1:
+	// crazy tmp1 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+	// we have to crazy tmp1 twice to bring it to C1.
+	// test if we did it twice; if not: MovD back
+	COUNTER2_1 do_crzy_tmp1
+
+	// now we have to bring tmp2 to C1:
+	// the A register contains C1, because we just brought tmp1 to C1, so we dont have to load C1 again.
+	// set return position: FLAG1
+do_crzy_tmp2:
+	R_FLAG1
+	// crazy tmp2
+	MOVED tmp2_crazy
+}{
+return_from_tmp2_1:
+	// crazy tmp2 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+	// we have to crazy tmp2 twice to bring it to C1.
+	// test if we did it twice; if not: MovD back
+	COUNTER2_1 do_crzy_tmp2
+
+	// same for tmp3 and tmp4:
+do_crzy_tmp3:
+	// set return position: FLAG1
+	R_FLAG1
+	// crazy tmp3
+	MOVED tmp3_crazy
+}{
+return_from_tmp3_1:
+	// crazy tmp3 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+	// we have to crazy tmp3 twice to bring it to C1.
+	// test if we did it twice; if not: MovD back
+	COUNTER2_1 do_crzy_tmp3
+
+do_crzy_tmp4:
+	// set return position: FLAG1
+	R_FLAG1
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_1:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+	// we have to crazy tmp4 twice to bring it to C1.
+	// test if we did it twice; if not: MovD back
+	COUNTER2_1 do_crzy_tmp4
+
+	// now we prepared tmp1, tmp2, tmp3 and tmp4 to store a value from our A register.
+	// so we can read in a character now.
+	IN ?- R_IN
+	// now we have to store the character we read by calling crazy for tmp1, tmp2, tmp3 and tmp4.
+	// after that we will have stored the character at tmp2 and tmp4. (tmp1 and tmp3 will contain a modified version we dont want and we won't use)
+	// crazy into tmp1: set return FLAG
+	R_FLAG2
+	// crazy tmp1
+	MOVED tmp1_crazy
+}{
+return_from_tmp1_2:
+	// crazy tmp1 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// crazy into tmp2: set return FLAG
+	R_FLAG2
+	// crazy tmp2
+	MOVED tmp2_crazy
+}{
+return_from_tmp2_2:
+	// crazy tmp2 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// crazy into tmp3: set return FLAG
+	R_FLAG2
+	// crazy tmp3
+	MOVED tmp3_crazy
+}{
+return_from_tmp3_2:
+	// crazy tmp3 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// crazy into tmp4: set return FLAG
+	R_FLAG2
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_2:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+
+	// now we have to check if we read C2 (EOF).
+	// op(C1, op(X, op(C2, op(C1, Y)))) is a tritwise test if both trits of X and Y are 2. Then it return 2, otherwise 0.
+	// if we rotate tmp2 and check it in each step tritwise against tmp4 with the test below,
+	// this will result in C2 if tmp2 and tmp4 has been C2 and in C0 otherwise.
+
+	R_MOVED // destory MOVED, because it will be restored in the next step that is reached via MOVED and requires restoring it.
+check_for_C2: // label; restore MOVED
+	R_MOVED
+	// load C1
+	ROT C1 R_ROT
+
+	// crazy into tmp4
+	R_FLAG3
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_3:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// load C2
+	ROT C2 R_ROT
+
+	// crazy into tmp4
+	R_FLAG4
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_4:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// rotate and load tmp2
+	R_FLAG3
+	// rotate tmp2
+	MOVED tmp2_rot
+}{
+return_from_tmp2_3:
+	// rot tmp4 has been executed
+	// restore xlat2 cycles
+	R_ROT R_MOVED
+
+	// crazy into tmp4
+	R_FLAG5
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_5:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// load C1
+	ROT C1 R_ROT
+
+	// crazy into tmp4
+	R_FLAG6
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_6:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// We have to rotate tmp2 and check tritwise for a 2 ten times (number of trits in tmp2/tmp4).
+	COUNTER5_1 rotated_5_or_10_times
+	MOVED check_for_C2
+}{
+rotated_5_or_10_times:
+	COUNTER2_2 rotated_10_times
+	MOVED check_for_C2
+}{
+rotated_10_times:
+	//
+	// now tmp4 is C2 or C0.
+	// crazy C21 into tmp4 => 1111111112 or C0
+
+	// load C21
+	ROT C0 R_ROT
+	CRAZY C21 R_CRAZY
+
+	// crazy into tmp4
+	R_FLAG7
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_7:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// crazy C0 into tmp4 => 1111111112 or C1
+
+	// load C0
+	ROT C0 R_ROT
+
+	// crazy into tmp4
+	R_FLAG8
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_8:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// -> crazy C21 into tmp4 => C2 or C20
+
+	// load C21
+	ROT C0 R_ROT
+	CRAZY C21 R_CRAZY
+
+	// crazy into tmp4
+	R_FLAG9
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_9:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// -> crazy 0t0000000002 into it => C21 oder C20.
+
+	// load 2
+	ROT C1 R_ROT
+	CRAZY 2 R_CRAZY
+
+	// crazy into tmp4
+	R_FLAG10
+	// crazy tmp4
+	MOVED tmp4_crazy
+}{
+return_from_tmp4_10:
+	// crazy tmp4 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	// now we move the c register to the address that tmp4 points to. we can count the number of NOPs that will be executed before reachung Jmp at offset 0 by looking for the number of steps the data pointer has moved.
+
+	MOVED tmp4
+}{
+NO_EOF_READ:
+	// thats it: no EOF has been read, so we will print out the character we read.
+	R_MOVED
+	// read tmp2 to print it out: crazy it with C2 2 times.
+
+	ROT C2 R_ROT
+	// crazy into tmp2: set return FLAG
+	R_FLAG4
+	// crazy tmp2
+	MOVED tmp2_crazy
+}{
+return_from_tmp2_4:
+	// crazy tmp2 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	ROT C2 R_ROT
+	// crazy into tmp2: set return FLAG
+	R_FLAG5
+	// crazy tmp2
+	MOVED tmp2_crazy
+}{
+return_from_tmp2_5:
+	// crazy tmp2 has been executed
+	// restore xlat2 cycles
+	R_CRAZY R_MOVED
+
+	OUT ?- R_OUT
+	// read next character: restore MOVED at the destination we move to (because the call here will detroy it), then run into ENTRY.
+	MOVED next_char
+}
+

@@ -1,0 +1,84 @@
+/*
+ *	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an
+ *	assembler for Malbolge.
+ *	Copyright (C) 2013 Matthias Ernst
+ *
+ *	LMAO is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	LMAO is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	E-Mail: info@matthias-ernst.eu
+ *
+ *
+ * Example in HeLL: Printing out a string without loops.
+ *
+ * This HeLL program prints out a string by reading its characters with
+ * OPR and ROT commands. The characters are modified, so the string cannot
+ * be printed out twice by looping.
+ * This consumes much more memory of the virtual Malbolge machine than
+ * other well known methods for printing out a string in Malbolge.
+ * For advanced string output, see example_hello_world.hell.
+ */
+
+.CODE
+// loop-resistant commands CRAZY, ROT, OUT
+CRAZY:
+	Opr/Nop
+	Jmp
+
+ROT:
+	Rot/Nop
+	Jmp
+
+OUT:
+	Out/Nop
+	Jmp
+
+// the following commands are executed once and need not be loop-resistant
+OUTPUT_WORLD:
+	Rot
+	Out
+	Rot
+	Out
+	Rot
+	Out
+	Rot
+	Out
+	Rot
+	Out
+	Rot
+	Out
+	Rot
+	Out
+	Hlt
+
+.DATA
+// The program logic follows here. Read characters and print them out.
+ENTRY:
+	ROT C2 R_ROT
+	CRAZY C2!'H' R_CRAZY
+	OUT ?- R_OUT
+	ROT 'e'<<1 R_ROT
+	OUT ?- R_OUT
+	ROT C2 R_ROT
+	CRAZY C2!('l'!C1!C1) R_CRAZY
+	OUT ?- R_OUT
+	OUT ?- R_OUT
+	ROT 'o'>>9 R_ROT
+	OUT ?- R_OUT
+	ROT ','<<1 R_ROT
+	OUT ?- R_OUT
+	ROT ' '<<1 R_ROT
+	OUT ?- R_OUT
+	OUTPUT_WORLD
+	'W'<<1 ?- 'o'<<1 ?- 'r'<<1 ?- 'l'<<1 ?- 'd'<<1 ?- '!'<<1 ?- '\n'<<1 
+

@@ -1,0 +1,17 @@
+*~
+lmao
+*.mb
+*.dbg
+bin/
+.cproject
+.project
+.settings
+doc/
+lmao.tar.gz
+Debug/
+*.user
+*.ncb
+*.sln
+*.suo
+*.vcproj
+

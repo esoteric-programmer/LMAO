@@ -1,0 +1,5 @@
+You need bison, flex, gcc, and make to build LMAO.
+
+Simply call make to build the lmao binary.
+Then type ./lmao to run it.
+

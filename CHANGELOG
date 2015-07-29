@@ -1,0 +1,47 @@
+v0.5
+- LMAO can write debug information now (e.g. for HeLL IDE)
+
+v0.4.4
+- Added @ (short for .OFFSET) and braces for block identification to HeLL
+- Added line numbers to error messages
+
+v0.4.3
+- Decreased size of generated programs a little bit
+
+v0.4.2
+- Added support for calculation operators with label names
+
+v0.4.1
+- Added command line argument for line length
+- Command line argument for output file name is not required any more
+- Decreased size of generated programs a little bit
+- Doxygen documentation
+- Fixed bugs
+
+v0.4
+- Added operators for constant calculation
+- Changed symbol for unused memory cell from "-" to "?-"
+- Added support for Strings in HeLL program files
+
+v0.3.2
+- Decreased size of generated programs
+
+v0.3.1
+- Fixed a bug
+
+v0.3
+- Added new data module for constant generation to decrease size of (complex) programs
+
+v0.2.1
+- Decreased size of generated programs
+
+v0.2
+- Decreased size of generated programs
+
+v0.1.1
+- Fixed a bug that may occur if .OFFSET is used in the code section
+- Added example code in HeLL for a cat program that halts on EOF
+
+v0.1
+- Basic implementation
+
