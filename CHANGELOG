@@ -1,5 +1,9 @@
+v0.5.1
+- If LMAO writes debugging information, it reserves memory cells for unused commands "?-".
+  This may make Malbolge programs a litte bit larger, but debugging them with HeLL IDE becomes a bit easier.
+
 v0.5
-- LMAO can write debug information now (e.g. for HeLL IDE)
+- LMAO can write debugging information now (e.g. for HeLL IDE)
 
 v0.4.4
 - Added @ (short for .OFFSET) and braces for block identification to HeLL

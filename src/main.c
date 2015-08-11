@@ -42,6 +42,7 @@ Ggf. Filenames von Source-Code und Malbolge-Code...
 #include "initialize.h"
 #include "malbolge.h"
 #include "main.h"
+#include "globals.h"
 
 /**
  * File extension that is added to the input file if no output file name is given as command line argument.
@@ -56,6 +57,7 @@ Ggf. Filenames von Source-Code und Malbolge-Code...
 LabelTree* labeltree;
 DataBlocks datablocks;
 CodeBlocks codeblocks;
+int debug_mode;
 
 /**
  *  Bison-generated parser function.
@@ -132,7 +134,7 @@ void print_usage_message(char* executable_name) {
 	printf("  -o <file>           Write output to <file>\n");
 	printf("  -f                  Fast mode; big output size\n");
 	printf("  -l <number>         Line break in output file every <number> characters\n");
-	printf("  -d                  Write debug informations\n");
+	printf("  -d                  Write debugging information\n");
 }
 
 /**
@@ -296,10 +298,11 @@ int main(int argc, char **argv) {
 	int initialize_code_size = 0;
 	int fast_mode = 0;
 	int smaller_program_success;
+	debug_mode = 0;
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.1 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
@@ -317,6 +320,10 @@ int main(int argc, char **argv) {
 	codeblocks.codefield = 0;
 	codeblocks.size = 0;
 	entrypoint = 0;
+	
+	if (debug_filename != 0) {
+		debug_mode = 1;
+	}
 
 	/* Parse input; exit on error. */
 	tmp = yyparse();
@@ -528,7 +535,7 @@ int main(int argc, char **argv) {
 	if (debug_filename != 0) {
 		FILE* debugfile = fopen(debug_filename, "wt");
 		if (debugfile == 0) {
-			fprintf(stderr,"Error: Cannot write debug informations to file %s\n", debug_filename);
+			fprintf(stderr,"Error: Cannot write debugging information to file %s\n", debug_filename);
 			return 1;
 		}
 		fprintf(debugfile,":LABELS:\n");
@@ -542,7 +549,7 @@ int main(int argc, char **argv) {
 		fprintf(debugfile,":MALBOLGE_FILE:\n");
 		fprintf(debugfile,"%s\n",output_filename);
 		fclose(debugfile);
-		printf("Debug informations written to %s\n", debug_filename);
+		printf("Debugging information written to %s\n", debug_filename);
 	}
 
 	return 0;

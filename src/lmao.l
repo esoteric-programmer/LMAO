@@ -23,6 +23,7 @@
 %{
 #include "malbolge.h"
 #include "typedefs.h"
+#include "globals.h"
 
 #include "lmao.tab.h"
 
@@ -252,7 +253,7 @@ RNop		{CHECK_WHITESPACE();
 		REQUIRE_WHITESPACE();}else{require_whitespace = 0;}
 		return OFFSET;}
 
-\?\-?		{CHECK_WHITESPACE(); REQUIRE_WHITESPACE();  if (yytext[1] == '-') {return NOTUSED;} return DONTCARE;}
+\?\-?		{CHECK_WHITESPACE(); REQUIRE_WHITESPACE();  if (yytext[1] == '-' && !debug_mode) {return NOTUSED;} return DONTCARE;}
 
 \+|-		{ yylval.c_val = yytext[0];
 		require_whitespace=0;
