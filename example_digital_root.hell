@@ -1,0 +1,672 @@
+/*	MALBOLGE DIGITAL ROOT CALCULATOR
+ *
+ *	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an
+ *	assembler for Malbolge.
+ *	Copyright (C) 2013 Matthias Ernst
+ *
+ *	LMAO is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	LMAO is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	E-Mail: info@matthias-ernst.eu
+ *
+ *
+ * Example in HeLL: Digital root calculator.
+ *
+ * The digital root of a number is the reduction of the number to a single
+ * digit through repeated summing.
+ * This program reads one line from STDIN.
+ * It ignores all characters that are not in the range from '0' to '9' and
+ * calculates the digital root of the input.
+ *
+ * To be more exact, the character '0' is ignored by the program, too.
+ *
+ *
+ * The main techniques used by the code below came from reverse engineering
+ * of the 99 bottles of beer program by Hisashi Iizawa et al. [1] and the
+ * ROT-13 program [2].
+ * [1] http://www.99-bottles-of-beer.net/language-malbolge-995.html
+ * [2] http://www.trs.cm.is.nagoya-u.ac.jp/Malbolge/index.html.en
+ */
+
+.CODE
+// flags used to return from variable manipulations and subroutines
+SUBROUTINE_FLAG1:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG2:
+	Nop/MovD
+	Jmp
+
+FLAG1:
+	Nop/MovD
+	Jmp
+
+FLAG2:
+	Nop/MovD
+	Jmp
+
+FLAG3:
+	Nop/MovD
+	Jmp
+
+FLAG4:
+	Nop/MovD
+	Jmp
+
+FLAG5:
+	Nop/MovD
+	Jmp
+
+FLAG6:
+	Nop/MovD
+	Jmp
+
+FLAG7:
+	Nop/MovD
+	Jmp
+
+FLAG8:
+	Nop/MovD
+	Jmp
+
+FLAG9:
+	Nop/MovD
+	Jmp
+
+// flags that act as loop counter
+
+LOOP2:
+	Nop/MovD
+	Jmp
+
+LOOP2_2:
+	Nop/MovD
+	Jmp
+
+LOOP2_3:
+	Nop/MovD
+	Jmp
+
+LOOP2_4:
+	Nop/MovD
+	Jmp
+
+LOOP5:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+LOOP5_2:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+LOOP5_3:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+
+// flags for program logic
+
+// used inside increment and decrement subroutines
+// if this is set when the routine returns
+// it indicates an overflow (C2->C0 or C0->C2).
+NO_MORE_CARRY_FLAG:
+	Nop/MovD
+	Jmp
+
+// is set to indicate that the user did some relevant input
+READ_NONZERO_DIGIT_FLAG:
+	Nop/MovD
+	Jmp
+
+// is set to indicate that the user did some input
+// which is not newline or EOF, so the program
+// should read another byte from the user.
+// if this is not set, the digital root should be printed out.
+NO_EXIT_FLAG:
+	Nop/MovD
+	Jmp
+
+// if this is not set, the digital root is 0
+// otherwise it is in the range 1..9, which can
+// be stored by the MovD-cycles defined below.
+EVER_READ_NONZERO_DIGIT_FLAG:
+	Nop/MovD
+	Jmp
+
+
+// "variables" to store digits
+
+// stores the digit read from terminal
+// it is stored by the current position of the MovD-cycle
+TMP_DIGIT:
+	Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+// stores the current digital sum
+// it is stored by the current position of the MovD-cycle
+DIGIT:
+	Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+
+
+// NOP: used with U_-prefix to skip some code
+NOP:
+	Jmp
+
+
+// loop-resistant commands follow
+
+MOVED:
+	MovD/Nop
+	Jmp
+
+CRAZY:
+	Opr/Nop
+	Jmp
+
+ROT:
+	Rot/Nop
+	Jmp
+
+HALT:
+	Hlt
+
+OUT:
+	Out/Nop
+	Jmp
+
+IN:
+	In/Nop
+	Jmp
+
+
+// used in increment and decrement subroutines for carry-detection
+@C21 CARRY:
+	RNop
+	RNop
+	Jmp
+
+
+.DATA
+
+// var value
+// value: increment and decrement subroutines operate on this variable.
+//        this is used as a parameter-register for the subroutines.
+//        so every value we wish to manipulate has to be stored here.
+//        we store user input here and use the variable for output-
+//        generation as well.
+crazy_value:
+	U_CRAZY value
+rot_value:
+	U_ROT value
+value:
+	C1
+	FLAG1 return_from_value_1 R_FLAG1
+	FLAG2 return_from_value_2 R_FLAG2
+	FLAG3 return_from_value_3 R_FLAG3
+	FLAG4 return_from_value_4 R_FLAG4
+	FLAG5 return_from_value_5 R_FLAG5
+	FLAG6 return_from_value_6 R_FLAG6
+	FLAG7 return_from_value_7 R_FLAG7
+	FLAG8 return_from_value_8 R_FLAG8
+	FLAG9 return_from_value_9
+
+
+// var value_C1
+// value_C1: the character we read in is crazied into this C1 memory cell first.
+//           this is just a temporary variable we need to store the original user
+//           input later.
+crazy_value_C1:
+	U_CRAZY value_C1
+rot_value_C1:
+	U_ROT value_C1
+value_C1:
+	C1
+	FLAG1 return_from_value_C1_1 R_FLAG1
+	FLAG2 return_from_value_C1_2
+
+
+// var carry
+// carry: this variable stores whether there is an overflow or not
+//        (used by subroutines increment and decrement).
+//        CARRY from .CODE-section will be used to branch dependent on variable value,
+//        which is either CARRY or CARRY+1
+crazy_carry:
+	U_CRAZY carry
+exec_carry:
+	R_MOVED
+carry:
+	CARRY
+	U_NOP execution_not_jumped_to_carry
+	U_NOP carry_was_not_set U_NOP carry_was_set
+carry_was_set:
+	MOVED return_carry_was_set
+carry_was_not_set:
+	MOVED return_carry_was_not_set
+execution_not_jumped_to_carry:
+	FLAG1 return_from_carry_1 R_FLAG1
+	FLAG2 return_from_carry_2 R_FLAG2
+return_carry_was_set:
+	FLAG1 return_from_carry_was_set_1 R_FLAG1
+	FLAG2 return_from_carry_was_set_2 R_FLAG2
+return_carry_was_not_set:
+	FLAG1 return_from_carry_was_not_set_1 R_FLAG1
+	FLAG2 return_from_carry_was_not_set_2
+
+// var tmp
+// tmp: used during increment and decrement
+crazy_tmp:
+	U_CRAZY tmp
+tmp:
+	C0 // must not contain any trit that is 2.
+	FLAG1 return_from_tmp_1 R_FLAG1
+	FLAG2 return_from_tmp_2 R_FLAG2
+	FLAG3 return_from_tmp_3 R_FLAG3
+	FLAG4 return_from_tmp_4
+
+
+
+restore_initial_state:
+	// write C1 into value and value_C1.
+	ROT C1 R_ROT
+	R_MOVED
+reset_value_loop:
+	R_MOVED
+	R_FLAG1
+	MOVED crazy_value
+return_from_value_1:
+	R_CRAZY
+	LOOP2 value_reset
+	R_MOVED
+	MOVED reset_value_loop
+
+value_reset:
+reset_value_C1_loop:
+	R_MOVED
+	R_FLAG1
+	MOVED crazy_value_C1
+return_from_value_C1_1:
+	R_CRAZY R_MOVED
+	LOOP2 value_C1_reset
+	MOVED reset_value_C1_loop
+
+{
+ENTRY:
+value_C1_reset:
+	// read character from stdin and store it in value_C1 and then in value
+	IN ?- R_IN
+	R_FLAG2
+	MOVED crazy_value_C1
+return_from_value_C1_2:
+	R_CRAZY R_MOVED
+	R_FLAG2
+	MOVED crazy_value
+return_from_value_2:
+	R_CRAZY R_MOVED
+	// increment input character by one to get range 0..256 (because EOF = C2).
+	R_SUBROUTINE_FLAG1
+	MOVED increment_value
+}
+return_from_increment_value_1:
+	// test for overflow (overflow: C2->C0, that means EOF was read)
+	NO_MORE_CARRY_FLAG no_increment_overflow
+	// if EOF is read: print digital sum
+	MOVED print_result
+
+{
+decrement_compare_loop:
+	R_MOVED
+no_increment_overflow:
+	// decrement value until an overflow is reached
+	// by using LOOPs from the .CODE-section,
+	// we can branch dependent on the number of decrements done so far
+	R_SUBROUTINE_FLAG1
+	MOVED decrement_value
+return_from_decrement_value_1:
+	NO_MORE_CARRY_FLAG no_decrement_overflow
+	MOVED decrement_overflow_detected
+}
+
+no_decrement_overflow:
+	// if we have reached the number of decrements for ASCII character '1' before,
+	// every further decrement cycle tells us that the number we read is one greater than we thought
+	READ_NONZERO_DIGIT_FLAG increment_digit R_READ_NONZERO_DIGIT_FLAG
+	// if '1' has not yet been reached, we jump into LOOP5_2 every 5th decrement step.
+	LOOP5_2 outer5loop
+	MOVED decrement_compare_loop
+
+outer5loop:
+	// jump into inner5loop every 5th steo again.
+	// so it will be executed every 25th decrement step
+	LOOP5_3 inner5loop
+	MOVED decrement_compare_loop
+
+inner5loop:
+	// we read an ASCII character of value at least 24.
+	// therefore we did not read EOF or newline, so we shall not output
+	// the digital root right now. we store this by forcing the NO_EXIT_FLAG to be set.
+	NO_EXIT_FLAG inner5loop
+	// every second step (50 decrements executed) we go into the innerst loop
+	LOOP2_4 innerst2loop
+	MOVED decrement_compare_loop
+
+innerst2loop:
+	// when we get here the first time, we read an ASCII value at least 49,
+	// which is '1'. So we set the READ_NONZERO_DIGIT_FLAG to indicate we read such a digit.
+	R_READ_NONZERO_DIGIT_FLAG
+	MOVED decrement_compare_loop
+
+increment_digit:
+	// restore R_READ_NONZERO_DIGIT_FLAG
+	R_READ_NONZERO_DIGIT_FLAG
+	// increment digit (stored in TMP_DIGIT) by calling TMP_DIGIT:
+	// the next element of the MovD-cycle is set
+	// if TMP_DIGIT was set to MovD before, this is the 9th increment - we did
+	// not read a digit from '1' to '9', but an ASCII character that is greater than '9'.
+	// then we abort parsing the current input character and read another one.
+	TMP_DIGIT exitloop
+	MOVED decrement_compare_loop
+
+exitloop:
+	// reset READ_NONZERO_DIGIT_FLAG and leave input-parsing decrement-loop
+	R_READ_NONZERO_DIGIT_FLAG
+	MOVED decrement_overflow_detected
+
+
+// this is the exit label for the input character recognition above.
+decrement_overflow_detected:
+// at first, we restore the LOOPs, so we could use them again.
+restore_5_loop:
+	R_MOVED
+value_reset2:
+	LOOP5_2 restore_5_loop_done
+	MOVED restore_5_loop
+
+restore_5_loop2:
+	R_MOVED
+restore_5_loop_done:
+	LOOP5_3 restore_5_loop2_done
+	MOVED restore_5_loop2
+
+restore_2_loop2:
+	R_MOVED
+restore_5_loop2_done:
+	LOOP2_4 restore_2_loop2_done
+	MOVED restore_2_loop2
+
+restore_2_loop2_done:
+	// now we test whether we shall output the current digital root
+	// or adapt it and read the next character
+	NO_EXIT_FLAG process_input // adapt current digital root
+	MOVED print_result // print out digital root and exit
+
+{
+process_input:
+	// if no nonzero digit has been read, we need not process the input and can continue reading characters
+	R_READ_NONZERO_DIGIT_FLAG
+	READ_NONZERO_DIGIT_FLAG restore_initial_state // nothing to process
+
+	// a nonzero digit has been read.
+	// we destroy the flag, so it can be reused
+	R_READ_NONZERO_DIGIT_FLAG
+	// we force the EVER_READ_NONZERO_DIGIT_FLAG to be set.
+	// this indicates that the output will be in the range 1..9 and must not be 0 any more,
+	// because we read at least one nonzero digit.
+a:
+	EVER_READ_NONZERO_DIGIT_FLAG a
+	// now we adapt DIGIT by TMP_DIGIT.
+	// DIGIT stores the current digital root, while TMP_DIGIT is only used to process input.
+	// when TMP_DIGIT becomes MovD, we are done and can leave the input processing to read the next character.
+	R_MOVED
+further_adapting:
+	R_MOVED
+	TMP_DIGIT restore_initial_state // done, read next
+	R_DIGIT
+	MOVED further_adapting
+}
+
+print_result:
+	// set value to '0'.
+	// therefore, reset it to C1 first.
+	ROT C1 R_ROT
+just_another_reset_value_loop:
+	R_MOVED
+	R_FLAG3
+	MOVED crazy_value
+
+return_from_value_3:
+	R_CRAZY R_MOVED
+	LOOP2 continue_printing
+	MOVED just_another_reset_value_loop
+
+continue_printing:
+	// now set value to '0' by crazy operator
+	ROT ('0' ! C1) << 1 R_ROT
+	R_FLAG4
+	MOVED crazy_value
+
+{
+return_from_value_4:
+	R_CRAZY
+	// now we may have to increment value until DIGIT tells us to abort
+	// therefore we test whether we should output '0' or not
+	R_EVER_READ_NONZERO_DIGIT_FLAG
+	EVER_READ_NONZERO_DIGIT_FLAG print_out_value // output '0'
+
+	// we must not output '0', so we increment value in a do-while loop
+	// until DIGIT becomes MovD.
+	// the current representation of values by DIGIT is as follows:
+	// DIGIT == MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop => print '1'
+	// DIGIT == Nop/MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop => print '2'
+	// DIGIT == Nop/Nop/MovD/Nop/Nop/Nop/Nop/Nop/Nop => print '3'
+	// DIGIT == Nop/Nop/Nop/MovD/Nop/Nop/Nop/Nop/Nop => print '4'
+	// DIGIT == Nop/Nop/Nop/Nop/MovD/Nop/Nop/Nop/Nop => print '5'
+	// DIGIT == Nop/Nop/Nop/Nop/Nop/MovD/Nop/Nop/Nop => print '6'
+	// DIGIT == Nop/Nop/Nop/Nop/Nop/Nop/MovD/Nop/Nop => print '7'
+	// DIGIT == Nop/Nop/Nop/Nop/Nop/Nop/Nop/MovD/Nop => print '8'
+	// DIGIT == Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop/MovD => print '9'
+increment_digit_loop:
+	R_MOVED
+	R_ROT R_ROT
+	R_SUBROUTINE_FLAG2
+	MOVED increment_value
+}
+return_from_increment_value_2:
+	// test whether we can leave the increment loop
+	DIGIT print_out_value_no_movd_restore // leave
+	// one more iteration
+	MOVED increment_digit_loop
+
+
+print_out_value:
+	R_MOVED
+print_out_value_no_movd_restore:
+	// load value and print it.
+	// load it by crazying C2 into it twice.
+	ROT C2 R_ROT
+	R_FLAG5
+	MOVED crazy_value
+
+return_from_value_5:
+	R_CRAZY
+	LOOP2 print_out_now
+	R_MOVED
+	MOVED print_out_value
+
+print_out_now:
+	// print value
+	OUT ?- R_OUT
+	// print line break
+	ROT '\n' << 1
+	OUT ?-
+	HALT
+
+
+
+// now the subroutines for increment and decrement of value follow
+
+increment_value:
+	R_MOVED
+	// kill NO_MORE_CARRY_FLAG
+	NO_MORE_CARRY_FLAG nomorecarrykilled R_NO_MORE_CARRY_FLAG
+nomorecarrykilled:
+	// We have to set tmp to C0. It won't contain any trit that is 2, so we can just crazy C1 into tmp.
+set_tmp_to_C0:
+	ROT C1 R_ROT
+	R_FLAG1 // set return flag
+	MOVED crazy_tmp // crazy C1 into tmp variable to set it to C0
+
+return_from_tmp_1:
+	R_CRAZY
+	ROT C2 R_ROT // load C2 to A register
+	// now we have to execute the command sequence
+	//   OPR value
+	//   OPR tmp
+	//   OPR carry
+	// twice.
+crazy_loop_increment_value:
+	//the following sequence must be executed twice; label for loop
+	R_MOVED
+	R_FLAG6 // set return flag
+	MOVED crazy_value // crazy A register into tmp variable
+
+return_from_value_6:
+	R_MOVED R_CRAZY
+	R_FLAG2 // set return flag
+	MOVED crazy_tmp // crazy into tmp variable
+
+return_from_tmp_2:
+	R_CRAZY R_MOVED
+	R_FLAG1 // set return flag
+	MOVED crazy_carry // crazy into carry variable
+
+return_from_carry_1:
+	R_CRAZY R_MOVED
+	// check loop condition
+	LOOP2 leave_crazy_loop_increment_value
+	MOVED crazy_loop_increment_value
+
+leave_crazy_loop_increment_value:
+	R_FLAG1
+	MOVED exec_carry
+
+return_from_carry_was_not_set_1:
+	R_NO_MORE_CARRY_FLAG
+return_from_carry_was_set_1:
+	R_MOVED
+	// rotate string_ptr until it has been rotated 10 times.
+	// after rotating go to increment or rotate again corresponding to the NO_MORE_CARRY_FLAG
+	R_FLAG7 // set return flag
+	MOVED rot_value // rot string_ptr
+
+return_from_value_7:
+	R_MOVED R_ROT
+	// exit loop after 5 times
+	LOOP5 exit_inner_increment_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value R_NO_MORE_CARRY_FLAG
+	MOVED increment_value
+
+exit_inner_increment_loop:
+	// exit loop after 2 times
+	LOOP2_2 exit_increment_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value R_NO_MORE_CARRY_FLAG
+	MOVED increment_value
+
+restore_no_more_carry_flag_and_rotate_value:
+	R_NO_MORE_CARRY_FLAG
+	MOVED return_from_carry_was_set_1
+
+
+exit_increment_loop:
+	SUBROUTINE_FLAG1 return_from_increment_value_1 R_SUBROUTINE_FLAG1
+	SUBROUTINE_FLAG2 return_from_increment_value_2
+
+
+
+
+
+
+
+decrement_value:
+	// kill NO_MORE_CARRY_FLAG
+	NO_MORE_CARRY_FLAG nomorecarrykilled_2 R_NO_MORE_CARRY_FLAG
+nomorecarrykilled_2:
+	// We have to set tmp to C0. It won't contain any trit that is 2, so we can just crazy C1 into tmp.
+	R_MOVED
+	ROT C1 R_ROT
+	R_FLAG3 // set return flag
+	MOVED crazy_tmp // crazy C1 into tmp variable to set it to C0
+
+return_from_tmp_3:
+	R_CRAZY
+value_load_loop:
+	ROT C2 R_ROT
+jmp_into_loop_from_behind:
+	R_MOVED
+	R_FLAG8
+	MOVED crazy_value
+
+return_from_value_8:
+	R_CRAZY R_MOVED
+	LOOP2 value_loaded
+	MOVED value_load_loop
+
+value_loaded:
+	LOOP2_2 jump_back_to_behind
+	R_FLAG4 // set return flag
+	MOVED crazy_tmp
+
+return_from_tmp_4:
+	R_CRAZY R_MOVED
+	R_FLAG2 // set return flag
+	MOVED crazy_carry
+
+return_from_carry_2:
+	R_CRAZY R_MOVED
+	MOVED jmp_into_loop_from_behind
+
+jump_back_to_behind:
+	R_FLAG2
+	MOVED exec_carry
+
+return_from_carry_was_not_set_2:
+	R_NO_MORE_CARRY_FLAG
+return_from_carry_was_set_2:
+	R_MOVED
+	// rotate string_ptr until it has been rotated 10 times.
+	// after rotating go to increment or rotate again corresponding to the NO_MORE_CARRY_FLAG
+	R_FLAG9 // set return flag
+	MOVED rot_value // rot string_ptr
+
+return_from_value_9:
+	R_MOVED R_ROT
+	// exit loop after 5 times
+	LOOP5 exit_inner_decrement_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value_2 R_NO_MORE_CARRY_FLAG
+	MOVED decrement_value
+
+exit_inner_decrement_loop:
+	// exit loop after 2 times
+	LOOP2_3 exit_decrement_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value_2 R_NO_MORE_CARRY_FLAG
+	MOVED decrement_value
+
+restore_no_more_carry_flag_and_rotate_value_2:
+	R_NO_MORE_CARRY_FLAG
+	MOVED return_from_carry_was_set_2
+
+exit_decrement_loop:
+	SUBROUTINE_FLAG1 return_from_decrement_value_1
+

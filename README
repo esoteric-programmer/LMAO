@@ -1,53 +1,109 @@
-LMAO (Low-level Malbolge Assembler, Ooh!) is an assembler for Malbolge. It takes a program written in HeLL (Hellish Low-level Language) and converts it to Malbolge.
+LMAO (Low-level Malbolge Assembler, Ooh!) is an assembler for Malbolge.
+It takes a program written in HeLL (Hellish Low-level Language) and
+converts it to Malbolge.
 
 Usage: ./lmao [options] <input file name>
 
 HeLL format:
-Examples written in HeLL can be found in the files example_simple_cat.hell, example_simple_hello_world.hell, example_cat_halt_on_eof.hell, and example_hello_world.hell.
+Examples written in HeLL can be found in the files
+example_simple_cat.hell,
+example_simple_hello_world.hell,
+example_cat_halt_on_eof.hell,
+example_hello_world.hell, and
+example_digital_root.hell.
+The ordering above matches their complexity.
 
-You can specify CODE and DATA sections with the keywords .CODE or .DATA. Everything of the HeLL program must either be part of a CODE section or part of a DATA section.
+You can specify CODE and DATA sections with the keywords
+.CODE or .DATA. Every expression of the HeLL program must be
+part of a CODE section or a DATA section.
+Thus, the HeLL program must start with ".CODE" or ".DATA".
 
-Comments can be introduced by ";", "%", "#", "//" and end at the end of the line.
+Comments can be introduced by ";", "%", "#", "//" and end at the end
+of the line. Multi-line comments start with "/*" and end with "*/".
 
-Blank lines (that are lines containing nothing or only blank symbols and not even a comment) indicate that LMAO need not put the following code/data directly behind the code/data above. You should use blank lines as often as possible, because this may decrease the size of the code. Braces disable this behaviour, so you may use braces if you want to use blank lines for clarity.
+Blank lines (that are lines containing only blank symbols,
+not even a comment) indicate that LMAO need not put the following
+code/data directly behind the code/data above.
+You should use blank lines as often as possible, because this may
+decrease the size of the code.
+Braces disable this behaviour, so you may use braces to connect your
+code if you want to use blank lines for clarity.
 
-At the begin of each block of connected commands (commands without blank lines and/or commands inside braces) you are allowed to use the .OFFSET directive (or for short: @) followed by a number (e.g. "@C1" or ".OFFSET 40000"). However, you should only use it if you really need it. It's better to let LMAO find the offsets.
+At the begin of each block of connected commands
+(commands without blank lines between them or commands inside braces)
+you are allowed to use the .OFFSET directive (or for short: @)
+followed by a number (e.g. "@C1" or ".OFFSET 40000").
+However, you should only use it if you really need it.
+Note that now all offsets are possible.
+It's better to let LMAO find the offsets.
 
-Labels are defined by typing their name followed by a colon (e.g. "EXAMPLE_LABEL:").
+Labels are defined by typing their name followed by a colon
+(e.g. "EXAMPLE_LABEL:").
 
 Numbers:
-Decimal numbers, trinary numbers or one of those: C0, C1, C2, C20, C21, EOF.
+Decimal numbers, trinary numbers or one of those constants:
+C0, C1, C2, C20, C21, EOF.
 Decimal number example: 42
 Trinary number example: 0t00212
-Supported operators: Plus (+), Minus (-), Times (*), Divided (/), Rotate Triwise Right (>>), Rotate Tritwise Left (<<), Crazy (!)
+Supported operators: Plus (+), Minus (-), Times (*), Divided (/),
+Rotate Triwise Right (>>), Rotate Tritwise Left (<<), Crazy (!)
 Example for using operators: (0t1210>>1)-1
 
 The CODE section:
-This section is composed of code blocks. Each code block must start with a label (or an offset, directly followed by a label) and contains connected Malbolge commands.
-The code blocks are seperated by empty lines (which must not contain a comment to be identified as an empty line; see above).
-LMAO may rearrange the code blocks, so commands that must not be seperated must be in the same code block.
-A command is either on of these: Nop, Jmp, MovD, Opr, Rot, In, Out, Hlt (all of them are not loop resistant) or it's a full xlat cycle (if it has to be loop resistant). An xlat cycle is defined by multiple commands seperated by a slash. E.g. a possible xlat cycle would be MovD/Nop. An immutable Nop can be written "RNop", which is shorter than "Nop/Nop".
-A label can be defined at any position of the code block except its end: Each code block must be concluded by a command or an xlat cycle.
+This section is composed of code blocks.
+Each code block must start with a label
+(or an offset, directly followed by a label) and contains connected
+Malbolge commands.
+The code blocks are seperated by empty lines (which must not contain a
+comment to be identified as an empty line; see above) or braces.
+LMAO may rearrange the code blocks, so commands that must not be
+seperated must be in the same code block.
+A command is either one of these:
+Nop, Jmp, MovD, Opr, Rot, In, Out, Hlt (all of them are not loop
+resistant) or it's a full xlat cycle (if it has to be loop resistant).
+An xlat cycle is defined by multiple commands seperated by a slash.
+E.g. a possible xlat cycle would be MovD/Nop. An immutable Nop can be
+written as "RNop", which is shorter than "Nop/Nop".
+A label can be defined at any position of the code block except its
+end. Each code block must be concluded by a command or an xlat cycle.
 Offsets can be defined by .OFFSET, followed by a constant (see above).
 
 The DATA section:
-You should write your program logic into the data section. The program entry point must be defined in the data section by using the label "ENTRY".
+You should write your program logic into the data section.
+The program entry point must be defined in the data section by using
+the label "ENTRY".
 In the data section each data word can be one of these:
 - a constant number
 - a label (maybe with a prefix)
 - a don't care or an unused symbol
 
-Don't care symbol: Indicated by writing "?". The initial value of this memory cell doesn't matter, but the cell might be modified during program execution.
-Unused symbol: Indicated by writing "?-". This memory cell will never be used during program execution. It must not be manipulated, because LMAO could place some small code blocks or data blocks here. Must not follow a label definition directly (in this case, use "?" instead).
+Don't care symbol: Indicated by writing "?". The initial value of this
+memory cell doesn't matter. However, the cell might be modified during
+program execution, so LMAO will reserve this cell.
+Unused symbol: Indicated by writing "?-". This memory cell will never
+be used during program execution. It must not be manipulated, because
+LMAO could place some other small code blocks or data blocks here.
+Must not follow on a label definition (in this case, use "?" instead).
 
-Prefix R_: Only for labels pointing to code in .CODE section. R_LABEL is equivalent to LABEL+1. This can be used to restore loop-resistant commands that are followed by a Jmp instruction directly.
+Prefix R_: Only for labels pointing to code in .CODE section.
+R_LABEL is equivalent to LABEL+1. This can be used to restore
+loop-resistant commands that are followed by a Jmp instruction
+directly.
 
-Prefix U_: Only for labels pointing to prefix-free code in .CODE section. A label with the U_-prefix must be followed by a label to data that is part of the same data-block and is placed behind the prefixed label.
-When LMAO reads an U_-prefixed label, it will insert RNops on front of the code at the destination. The label itself is decreased dependent on the distance to the position the proceeding label points to.
-Example: U_ROTATE TO_BE_ROTATED some_other_code TO_BE_ROTATED: C1 R_ROTATE
+Prefix U_: Only for labels pointing to prefix-free code in .CODE
+section. A label with the U_-prefix must be followed by a label to
+data that is part of the same data-block and is placed behind the
+prefixed label.
+When LMAO reads an U_-prefixed label, it will insert RNops on front of
+the code at the destination. The label itself is decreased dependent on
+the distance to the position the proceeding label points to.
+Example:
+U_ROTATE TO_BE_ROTATED some_other_code TO_BE_ROTATED: C1 R_ROTATE
 
-Strings: Use quotes. Supported escape characters: \r \n \t \\ \" \0. The string may be followed by a comma and a data word. In this case, the data word will be placed between each character of the string by LMAO.
+Strings: Use quotes. Supported escape characters: \r \n \t \\ \" \0.
+The string may be followed by a comma and a data word. In this case,
+the data word will be placed between each character of the string by
+LMAO.
 Example 1: "Test" is equivalent to 'T' 'e' 's' 't'
 Example 2: "Test", 42 is equivalent to 'T' 42 'e' 42 's' 42 't'
-
 
