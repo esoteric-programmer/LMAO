@@ -1,3 +1,6 @@
+v0.5.2
+- Slightly improved handling of fixed offsets.
+
 v0.5.1
 - If LMAO writes debugging information, it reserves memory cells for
   unused commands "?-" (considers them as "?").

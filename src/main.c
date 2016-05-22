@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.1 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.2 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
@@ -461,15 +461,27 @@ int main(int argc, char **argv) {
 
 	update_offsets(memory_layout);
 	srand(time(NULL)); /* seed */
-	if (generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 0)!=0)
-		initialize_code_size = generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, program, 0, &execution_steps_until_entry_point);
-	else
+	if (generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 1, 0)!=0) {
+		initialize_code_size = generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, program, 0, &execution_steps_until_entry_point,0);
+	} else {
 		program[0] = 0;
+	}
 
 	if (initialize_code_size > 0){
 		initialize_code_size = (initialize_code_size*2)/3; /* start with small programs. */
 	}else{
-		initialize_code_size = (C2*2)/3; /* it may fail, but start with small programs... */
+		int result = generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 0, 1);
+		if (result != 0) {
+			initialize_code_size = generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, program, 0, &execution_steps_until_entry_point,1); /* it may fail, but start with small programs... */
+			program[0] = 0;
+			if (initialize_code_size <= 0) {
+				fprintf(stderr,"An error occured.\n");
+				return 1;
+			}
+		}else{
+			fprintf(stderr,"An error occured.\n");
+			return 1;
+		}
 	}
 
 	/* try to generate a malbolge program with smaller code */
@@ -489,11 +501,11 @@ int main(int argc, char **argv) {
 			continue;
 		}
 		update_offsets(memory_layout);
-		if (!generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 1)) {
+		if (!generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 1, 0)) {
 			initialize_code_size += 32;
 			continue;
 		}
-		if (generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, smaller_program, 1, &execution_steps_until_entry_point) < 0){
+		if (generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, smaller_program, 1, &execution_steps_until_entry_point,0) < 0){
 			initialize_code_size += 32;
 			continue;
 		}
@@ -503,6 +515,9 @@ int main(int argc, char **argv) {
 
 	if (smaller_program_success != 1){
 		fprintf(stderr,"Error: Memory usage conflict while generating initial code.\nThe program may be too big or .OFFSET may cause problems.\n");
+		if (fast_mode) {
+			fprintf(stderr,"In some cases it might help to disable fast mode.\n");
+		}
 		return 1;
 	}
 

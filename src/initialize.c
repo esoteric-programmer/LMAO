@@ -153,7 +153,7 @@ int parse_datacell(DataCell* data, LabelTree* labeltree, int no_error_printing) 
 	return value;
 }
 
-int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_preinitialized, int* opcodes, LabelTree* labeltree, int no_error_printing){
+int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_preinitialized, int* opcodes, LabelTree* labeltree, int no_error_printing, int ignore_fixed_offsets_in_preinitialized_section){
 	int i;
 	int last_opcode_from_33_to_126 = 81; /* store it to find best value for reserved code word */
 	for (i=0;i<=C2;i++){
@@ -185,7 +185,7 @@ int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_prei
 			if (opcodes[i] < 127 && opcodes[i] > 32) {
 				last_opcode_from_33_to_126 = opcodes[i];
 			}
-			if (i <= last_preinitialized) {
+			if (i <= last_preinitialized && !ignore_fixed_offsets_in_preinitialized_section) {
 				if (!no_error_printing)
 					fprintf(stderr, "Error: Invalid offset in data section.\n");
 				return 0; /*ERROR! */
@@ -200,7 +200,7 @@ int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_prei
 }
 
 
-int generate_malbolge_initialization_code(int program[], int last_preinitialized, int entrypoint, char malbolge_code[], int no_error_printing, int* execution_steps_until_entry_point){
+int generate_malbolge_initialization_code(int program[], int last_preinitialized, int entrypoint, char malbolge_code[], int no_error_printing, int* execution_steps_until_entry_point, int ignore_wrong_size){
 
 	int i = 0;
 	int size_left = 59049;
@@ -432,13 +432,15 @@ int generate_malbolge_initialization_code(int program[], int last_preinitialized
 	}
 
 	/* allow overriding NOPs between the end of initialization code and the end of preinitialized code area. */
-	for (i=59049-size_left;i<last_preinitialized-1;i++){
-		if (program[i] >= 0 && is_valid_initial_character(i%94, program[i])!=0)
-			normalized_code_array[i] = program[i];
-		else if (program[i] >= 0) {
-			if (!no_error_printing)
-				fprintf(stderr,"Internal error: Cannot place command %d at position %d.\n",(int)program[i],i);
-			return -1;
+	if (!ignore_wrong_size) {
+		for (i=59049-size_left;i<last_preinitialized-1;i++){
+			if (program[i] >= 0 && is_valid_initial_character(i%94, program[i])!=0)
+				normalized_code_array[i] = program[i];
+			else if (program[i] >= 0) {
+				if (!no_error_printing)
+					fprintf(stderr,"Internal error: Cannot place command %d at position %d.\n",(int)program[i],i);
+				return -1;
+			}
 		}
 	}
 

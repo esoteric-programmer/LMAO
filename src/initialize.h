@@ -43,7 +43,7 @@ void update_offsets(MemoryCell* memory);
  * \param no_error_printing If set to non-zero, error messages won't be printed to stdout.
  * \return If an error occurs, zero will be returned. Otherwise, a non-zero value will be returned.
  */
-int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_preinitialized, int* opcodes, LabelTree* labeltree, int no_error_printing);
+int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_preinitialized, int* opcodes, LabelTree* labeltree, int no_error_printing, int ignore_fixed_offsets_in_preinitialized_section);
 
 /**
  * \brief This function creates a Malbolge program from given memory cells.
@@ -57,7 +57,7 @@ int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_prei
  * \param no_error_printing TODO
  * \return  -1 on error; otherwise: size needed for pure initialization code (without NOPs used for filling up; without preinitialized code words.)
  */
-int generate_malbolge_initialization_code(int program[], int last_preinitialized, int entrypoint, char malbolge_code[], int no_error_printing, int* execution_steps_until_entry_point);
+int generate_malbolge_initialization_code(int program[], int last_preinitialized, int entrypoint, char malbolge_code[], int no_error_printing, int* execution_steps_until_entry_point, int ignore_wrong_size);
 
 #endif
 
