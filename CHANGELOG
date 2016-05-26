@@ -1,3 +1,6 @@
+v0.5.3
+- Automatic disabling of fast mode on failure.
+
 v0.5.2
 - Slightly improved handling of fixed offsets.
 

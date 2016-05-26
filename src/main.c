@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.2 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.3 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
@@ -452,6 +452,8 @@ int main(int argc, char **argv) {
 
 	}
 
+	srand(time(NULL)); /* seed */
+repeat_building:
 	/* put preinitialized_section, to_be_initialized_section and fixed_offsets together... */
 	last_preinitialized_position = 0;
 	if (!put_all_memcells_together(fixed_offsets, to_be_initialized_section, preinitialized_section, memory_layout, &last_preinitialized_position, 59049, 0)){
@@ -460,7 +462,6 @@ int main(int argc, char **argv) {
 	}
 
 	update_offsets(memory_layout);
-	srand(time(NULL)); /* seed */
 	if (generate_opcodes_from_memory_layout(memory_layout, last_preinitialized_position, opcodes, labeltree, 1, 0)!=0) {
 		initialize_code_size = generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, program, 0, &execution_steps_until_entry_point,0);
 	} else {
@@ -479,8 +480,8 @@ int main(int argc, char **argv) {
 				return 1;
 			}
 		}else{
-			fprintf(stderr,"An error occured.\n");
-			return 1;
+			initialize_code_size = (C2*2) / 3; /* it may fail, but start with small programs... */
+			program[0] = 0;
 		}
 	}
 
@@ -514,10 +515,15 @@ int main(int argc, char **argv) {
 	}
 
 	if (smaller_program_success != 1){
-		fprintf(stderr,"Error: Memory usage conflict while generating initial code.\nThe program may be too big or .OFFSET may cause problems.\n");
 		if (fast_mode) {
-			fprintf(stderr,"In some cases it might help to disable fast mode.\n");
+			fprintf(stderr,"Warning: Memory usage conflict in fast mode. Retrying in normal mode...\n");
+			fast_mode = 0;
+			program[0] = 0;
+			initialize_code_size = 0;
+			goto repeat_building;
 		}
+		fprintf(stderr,"Error: Memory usage conflict while generating initial code.\nThe program may be too big or .OFFSET may cause problems.\n");
+		//fprintf(stderr,"In some cases it might help to disable fast mode.\n");
 		return 1;
 	}
 
