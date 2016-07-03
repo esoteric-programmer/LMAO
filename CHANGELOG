@@ -1,3 +1,6 @@
+v0.5.4
+- Slightly improved handling of fixed offsets in CODE section.
+
 v0.5.3
 - Automatic disabling of fast mode on failure.
 

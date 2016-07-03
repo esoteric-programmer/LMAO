@@ -169,7 +169,7 @@ int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_prei
 			if (i > last_preinitialized) {
 				last_opcode_from_33_to_126 = opcodes[i];
 			}
-			if (i <= last_preinitialized && !is_valid_initial_character(i%94, symbol)) {
+			if (i <= last_preinitialized && !is_valid_initial_character(i%94, symbol) && !ignore_fixed_offsets_in_preinitialized_section) {
 				if (!no_error_printing)
 					fprintf(stderr,"Error: Invalid symbol in preinitialized code section.\n");
 				return 0; /* ERROR! */

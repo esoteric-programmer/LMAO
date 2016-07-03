@@ -129,12 +129,12 @@ int put_all_memcells_together(MemoryCell fixedoffset[], MemoryCell toinitial[], 
  * \param executable_name Command used to run this program. If set to NULL, "./lmao" will be printed instead.
  */
 void print_usage_message(char* executable_name) {
-	printf("Usage: %s [options] <input file name>\n",executable_name!=0?executable_name:"./lmao");
+	printf("Usage: %s [options] file\n",executable_name!=0?executable_name:"./lmao");
 	printf("Options:\n");
-	printf("  -o <file>           Write output to <file>\n");
-	printf("  -f                  Fast mode; big output size\n");
-	printf("  -l <number>         Line break in output file every <number> characters\n");
-	printf("  -d                  Write debugging information\n");
+	printf("  -o <file>           Write the output into <file>\n");
+	printf("  -f                  Fast mode (bigger output)\n");
+	printf("  -l <number>         Insert a line break every <number> characters\n");
+	printf("  -d                  Write debug information\n");
 }
 
 /**
@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.3 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.4 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
