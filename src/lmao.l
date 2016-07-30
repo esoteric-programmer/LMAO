@@ -96,7 +96,7 @@ command		MovD|Nop|Jmp|In|Out|Opr|Rot|Hlt
 identifier	[A-Za-z_][0-9A-Za-z_]{0,99}
 label		{identifier}:
 whitespace	[ \t\r]
-comment		([;%#]|\/\/)[^\n]*|\/\*([^\*]|\*[^\/])*\*\/
+comment     ([;%#]|\/\/)[^\n]*|\/\*\/*(([^\*\/]\/*)*\*+)+\/
 part		[\n]{whitespace}*[\n]
 section		\.(CODE|DATA)
 offset		\.OFFSET|@

@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.4 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.5 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
