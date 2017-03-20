@@ -1,7 +1,7 @@
 /*
 
 	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
-	Copyright (C) 2013 Matthias Ernst
+	Copyright (C) 2013-2017 Matthias Lutter
 
 	LMAO is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-	E-Mail: info@matthias-ernst.eu
+	E-Mail: matthias@lutter.cc
 
 */
 

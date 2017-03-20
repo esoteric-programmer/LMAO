@@ -1,7 +1,7 @@
 /*
 
 	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
-	Copyright (C) 2013 Matthias Ernst
+	Copyright (C) 2013-2017 Matthias Lutter
 
 	LMAO is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-	E-Mail: info@matthias-ernst.eu
+	E-Mail: matthias@lutter.cc
 
 */
 
@@ -54,7 +54,7 @@ int parse_dataatom(DataAtom* data, LabelTree* labeltree, int no_error_printing){
 		DataBlock* destination_d = 0;
 		if (!get_label(&destination_c, &destination_d, data->destination_label, labeltree)){
 			if (!no_error_printing) {
-				fprintf(stderr,"Internal error: Cannot refind label %s.\n", data->destination_label);
+				fprintf(stderr,"Internal error: Cannot find label %s again.\n", data->destination_label);
 			}
 			return -1; /*ERROR! */
 		}
@@ -160,9 +160,9 @@ int generate_opcodes_from_memory_layout(MemoryCell* memory_layout, int last_prei
 		opcodes[i] = -1;
 		if (memory_layout[i].usage == CODE || memory_layout[i].usage == PREINITIALIZED_CODE) {
 			char symbol;
-			if (!is_xlatcycle_existant(memory_layout[i].code->command, i%94, &symbol)){
+			if (!is_xlatcycle_existent(memory_layout[i].code->command, i%94, &symbol)){
 				if (!no_error_printing)
-					fprintf(stderr,"Internal error: Cannot refind xlat2 cycle.\n");
+					fprintf(stderr,"Internal error: Cannot find xlat2 cycle again.\n");
 				return 0; /*ERROR! */
 			}
 			opcodes[i] = (unsigned char)symbol;

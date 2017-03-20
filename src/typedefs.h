@@ -1,7 +1,7 @@
 /*
 
 	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
-	Copyright (C) 2013 Matthias Ernst
+	Copyright (C) 2013-2017 Matthias Lutter
 
 	LMAO is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-	E-Mail: info@matthias-ernst.eu
+	E-Mail: matthias@lutter.cc
 
 */
 
@@ -171,6 +171,11 @@ typedef struct CodeBlock {
 	 * Set to: 1 for the last cell, 2 for the second last, ..., n for the first.
 	 */
 	int num_of_blocks;
+	/**
+	 * Indicates that the block is not specified in HeLL source directly,
+	 * but generated as a preceding block for U_ prefix reference.
+	 */
+	int virtual_block;
 } CodeBlock;
 
 /**

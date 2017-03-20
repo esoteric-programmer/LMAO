@@ -1,7 +1,7 @@
 /*
 
 	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
-	Copyright (C) 2013 Matthias Ernst
+	Copyright (C) 2013-2017 Matthias Lutter
 
 	LMAO is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-	E-Mail: info@matthias-ernst.eu
+	E-Mail: matthias@lutter.cc
 
 */
 
@@ -155,10 +155,10 @@ Codeblock:		{$$ = 0;}
 
 Codeexpressions:	{ $$ = 0;}
 				| LABEL Codeexpressions { if (!insert_label(0, $2, $1, &labeltree, &@1)) return 1; $$=$2; }
-				| Codeexpression Codeexpressions { $$=(CodeBlock*)malloc(sizeof(CodeBlock)); $$->next = $2; if ($2 != 0) $2->prev = $$; $$->prev=0; $$->offset=-1; $$->command=$1; if ($2 == 0) $$->num_of_blocks = 1; else $$->num_of_blocks = $2->num_of_blocks+1; COPY_CODE_POSITION($$->code_position, @1, @1); };
+				| Codeexpression Codeexpressions { $$=(CodeBlock*)malloc(sizeof(CodeBlock)); $$->next = $2; $$->virtual_block = 0; if ($2 != 0) $2->prev = $$; $$->prev=0; $$->offset=-1; $$->command=$1; if ($2 == 0) $$->num_of_blocks = 1; else $$->num_of_blocks = $2->num_of_blocks+1; COPY_CODE_POSITION($$->code_position, @1, @1); };
 
 Codeexpression:		RNOP {$$=(XlatCycle*)malloc(sizeof(XlatCycle)); $$->cmd = MALBOLGE_COMMAND_NOP; $$->next = $$; /*RNOP: link to itself*/ COPY_CODE_POSITION($$->code_position,@1,@1); } //COPY_CODE_POSITION(@$, @1, @1);}
-				| XlatCycle {$$=$1; COPY_CODE_POSITION($$->code_position,@1,@1); };//COPY_CODE_POSITION(@$, @1, @1);};
+				| XlatCycle {$$=$1; };//COPY_CODE_POSITION(@$, @1, @1);};
 
 XlatCycle:		COMMAND { $$=(XlatCycle*)malloc(sizeof(XlatCycle)); $$->next = 0; $$->cmd = $1; COPY_CODE_POSITION($$->code_position,@1,@1); } //COPY_CODE_POSITION(@$, @1, @1); }
 				| COMMAND SLASH XlatCycle { $$=(XlatCycle*)malloc(sizeof(XlatCycle)); $$->next = $3; $$->cmd = $1; COPY_CODE_POSITION($$->code_position,@1,@1); }; //COPY_CODE_POSITION(@$, @1, @3); };

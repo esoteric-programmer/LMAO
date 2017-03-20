@@ -1,3 +1,25 @@
+/*
+
+	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
+	Copyright (C) 2013-2017 Matthias Lutter
+
+	LMAO is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	LMAO is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+	E-Mail: matthias@lutter.cc
+
+*/
+
 #ifndef MAININCLUDED
 #define MAININCLUDED
 
@@ -39,11 +61,12 @@ int is_valid_initial_character(int position, char character);
  *                     If this pointer is set to NULL, the ASCII character won't be written.
  * \return If the given xlat2 cycle exists at the given position, this funciton returns a non-zero value. Otherwise zero is returned.
  */
-int is_xlatcycle_existant(XlatCycle* cycle, int position, char* start_symbol);
+int is_xlatcycle_existent(XlatCycle* cycle, int position, char* start_symbol);
 
 /* debug-informations */
 void print_labeltree(FILE* destination, LabelTree* labeltree);
 void print_source_positions(FILE* destination, MemoryCell memory[C2+1]);
+void print_xlat2_positions(FILE* destination, MemoryCell memory[C2+1]);
 
 #endif
 

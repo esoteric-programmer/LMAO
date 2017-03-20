@@ -1,7 +1,7 @@
 /*
 
 	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an assembler for Malbolge.
-	Copyright (C) 2013 Matthias Ernst
+	Copyright (C) 2013-2017 Matthias Lutter
 
 	LMAO is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 	You should have received a copy of the GNU General Public License
 	along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-	E-Mail: info@matthias-ernst.eu
+	E-Mail: matthias@lutter.cc
 
 */
 
@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.5 (Low-level Malbolge Assembler, Ooh!) by Matthias Ernst.\n");
+	printf("This is LMAO v0.5.6 (Low-level Malbolge Assembler, Ooh!) by Matthias Lutter.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
@@ -388,7 +388,7 @@ int main(int argc, char **argv) {
 			 * break with error if no position is allowed any more. */
 			for (j=0;j<94;j++){
 				char symbol = 0;
-				if (possible_positions[j]!=0 && !is_xlatcycle_existant(current_command, (j+pos)%94, &symbol))
+				if (possible_positions[j]!=0 && !is_xlatcycle_existent(current_command, (j+pos)%94, &symbol))
 					possible_positions[j] = 0;
 				if (possible_positions[j]==2 && !is_valid_initial_character((j+pos)%94, symbol))
 					possible_positions[j] = 1;
@@ -569,6 +569,8 @@ repeat_building:
 		fprintf(debugfile,"%s\n",input_filename);
 		fprintf(debugfile,":MALBOLGE_FILE:\n");
 		fprintf(debugfile,"%s\n",output_filename);
+		fprintf(debugfile,":XLAT2:\n");
+		print_xlat2_positions(debugfile, memory_layout);
 		fclose(debugfile);
 		printf("Debugging information written to %s\n", debug_filename);
 	}
@@ -661,12 +663,83 @@ void print_source_positions(FILE* destination, MemoryCell memory[C2+1]){
 	/* save all offsets. */
 	for (i=0;i<C2+1;i++){
 		if (memory[i].usage == CODE || memory[i].usage == PREINITIALIZED_CODE) {
-			fprintf(destination,"%d: CODE %d:%d - %d:%d\n",i, memory[i].code->code_position.first_line, memory[i].code->code_position.first_column, memory[i].code->code_position.last_line, memory[i].code->code_position.last_column);
+			fprintf(destination,
+					"%d: CODE %d:%d - %d:%d\n",
+					i,
+					memory[i].code->code_position.first_line,
+					memory[i].code->code_position.first_column,
+					memory[i].code->code_position.last_line,
+					memory[i].code->code_position.last_column);
 		} else if (memory[i].usage == DATA || memory[i].usage == RESERVED_DATA)
-			fprintf(destination,"%d: DATA %d:%d - %d:%d\n",i, memory[i].data->code_position.first_line, memory[i].data->code_position.first_column, memory[i].data->code_position.last_line, memory[i].data->code_position.last_column);
+			fprintf(destination,
+					"%d: DATA %d:%d - %d:%d\n",
+					i,
+					memory[i].data->code_position.first_line,
+					memory[i].data->code_position.first_column,
+					memory[i].data->code_position.last_line,
+					memory[i].data->code_position.last_column);
 	}
 }
 
+void print_xlat2_positions(FILE* destination, MemoryCell memory[C2+1]){
+	int i;
+	if (destination == 0)
+		return;
+	/* save all offsets. */
+	for (i=0;i<C2+1;i++){
+		if (!memory[i].code ||
+				(memory[i].usage != CODE && memory[i].usage != PREINITIALIZED_CODE)) {
+			continue;
+		}
+		if (memory[i].code->virtual_block) {
+			continue;
+		}
+		char current_char;
+		XlatCycle* current_command = memory[i].code->command;
+		if (!current_command) {
+			continue;
+		}
+		if (!is_xlatcycle_existent(current_command, i%94, &current_char)){
+			continue;
+		}
+		XlatCycle* tmp = current_command;
+		int is_rnop = 1;
+		do {
+			if (tmp->cmd != MALBOLGE_COMMAND_NOP) {
+				is_rnop = 0;
+			}
+			tmp = tmp->next;
+		} while (tmp && tmp != current_command && is_rnop);
+		if (is_rnop) {
+			char first_char = current_char;
+			do {
+				fprintf(destination,
+						"%d %c %d:%d - %d:%d\n",
+						i,
+						current_char,
+						memory[i].code->code_position.first_line,
+						memory[i].code->code_position.first_column,
+						memory[i].code->code_position.last_line,
+						memory[i].code->code_position.last_column);
+				current_char = XLAT2[(int)current_char-33];
+			}while(current_char != first_char);
+			continue;
+		}
+		while (current_command) {
+			// TODO: INFO FOR FIRST COMMAND IS WRONG: MATCHES WHOLE CYCLE...
+			fprintf(destination,
+					"%d %c %d:%d - %d:%d\n",
+					i,
+					current_char,
+					current_command->code_position.first_line,
+					current_command->code_position.first_column,
+					current_command->code_position.last_line,
+					current_command->code_position.last_column);
+			current_char = XLAT2[(int)current_char-33];
+			current_command = current_command->next;
+		}
+	}
+}
 
 int is_nop(int command){
 	if (command != MALBOLGE_COMMAND_OPR
@@ -701,7 +774,7 @@ int is_valid_initial_character(int position, char character){
 	return 0;
 }
 
-int is_xlatcycle_existant(XlatCycle* cycle, int position, char* start_symbol){
+int is_xlatcycle_existent(XlatCycle* cycle, int position, char* start_symbol){
 	/* find first NON-NOP in cycle, count NOPs until it.
 	 * append NOPs before NON-NOP virtually at the end; start with NON-NOP
 	 * set character to the NON-OP-character, then check if xlat2 does exactly what it should.
@@ -852,15 +925,16 @@ int handle_U_and_R_prefix_for_data_atom(DataAtom* data, DataBlock* following_blo
 					XlatCycle* cycle = (XlatCycle*)malloc(sizeof(XlatCycle));
 					cycle->next = cycle;
 					cycle->cmd = MALBOLGE_COMMAND_NOP;
-					memcpy(&(cycle->code_position), &(destination_c->command->code_position), sizeof(HeLLCodePosition));
+					memcpy(&(cycle->code_position), &(destination_c->code_position), sizeof(HeLLCodePosition));
 					code = (CodeBlock*)malloc(sizeof(CodeBlock));
 					code->command = cycle;
 					code->prev = 0;
 					code->next = destination_c;
+					code->virtual_block = 1;
 					destination_c->prev = code;
 					code->num_of_blocks = destination_c->num_of_blocks+1;
 					code->offset = (destination_c->offset==-1?-1:destination_c->offset-1);
-					memcpy(&(code->code_position), &(cycle->code_position), sizeof(HeLLCodePosition));
+					memcpy(&(code->code_position), &(destination_c->code_position), sizeof(HeLLCodePosition));
 					destination_c = code;
 				}
 				offset_counter++;
