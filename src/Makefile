@@ -25,7 +25,7 @@ all: lmao
 	$(CC) $(CFLAGS) -o $@ $<
 
 lmao: ../bin $(OBJ)
-	gcc $(OBJ) -o ../bin/lmao -lfl
+	gcc $(OBJ) -o ../bin/lmao
 
 clean:
 	rm -rf ../bin/

@@ -187,6 +187,8 @@ else{
   DataBlock* tmp;
   DataBlock* tmp_old=0;
   int i;
+  int char_start_column;
+  int char_end_column;
   $$=0;
   for (i=0;i<length;i++){
     tmp=(DataBlock*)malloc(sizeof(DataBlock));
@@ -198,7 +200,7 @@ else{
     tmp->next = $2;
     if ($2 != 0)
       $2->prev = tmp;
-    int char_start_column = @1.first_column+i+1;
+    char_start_column = @1.first_column+i+1;
     tmp->offset=-1;
     tmp->data=(DataCell*)malloc(sizeof(DataCell));
     tmp->data->_operator = DATACELL_OPERATOR_LEAF_ELEMENT;
@@ -233,7 +235,7 @@ else{
     else
       tmp->num_of_blocks = $2->num_of_blocks+(length-escaped-processed);
     tmp_old = tmp; processed++;
-    int char_end_column = @1.first_column+i+1;
+    char_end_column = @1.first_column+i+1;
     COPY_CODE_POSITION(tmp->data->leaf_element->code_position,@1,@1);
     tmp->data->leaf_element->code_position.first_column = char_start_column;
     tmp->data->leaf_element->code_position.last_column = char_end_column;

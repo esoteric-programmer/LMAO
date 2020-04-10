@@ -20,6 +20,8 @@
 
 */
 
+%option noyywrap
+
 %{
 #include "malbolge.h"
 #include "typedefs.h"

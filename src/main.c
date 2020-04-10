@@ -298,10 +298,10 @@ int main(int argc, char **argv) {
 	int initialize_code_size = 0;
 	int fast_mode = 0;
 	int smaller_program_success;
-	debug_mode = 0;
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
+	debug_mode = 0;
 	printf("This is LMAO v0.5.6b (Low-level Malbolge Assembler, Ooh!) by Matthias Lutter.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
@@ -690,6 +690,10 @@ void print_xlat2_positions(FILE* destination, MemoryCell memory[C2+1]){
 		return;
 	/* save all offsets. */
 	for (i=0;i<C2+1;i++){
+		char current_char;
+		XlatCycle* current_command;
+		XlatCycle* tmp;
+		int is_rnop;
 		if (!memory[i].code ||
 				(memory[i].usage != CODE && memory[i].usage != PREINITIALIZED_CODE)) {
 			continue;
@@ -697,16 +701,15 @@ void print_xlat2_positions(FILE* destination, MemoryCell memory[C2+1]){
 		if (memory[i].code->virtual_block) {
 			continue;
 		}
-		char current_char;
-		XlatCycle* current_command = memory[i].code->command;
+		current_command = memory[i].code->command;
 		if (!current_command) {
 			continue;
 		}
 		if (!is_xlatcycle_existent(current_command, i%94, &current_char)){
 			continue;
 		}
-		XlatCycle* tmp = current_command;
-		int is_rnop = 1;
+		tmp = current_command;
+		is_rnop = 1;
 		do {
 			if (tmp->cmd != MALBOLGE_COMMAND_NOP) {
 				is_rnop = 0;
