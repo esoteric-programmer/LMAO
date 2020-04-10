@@ -15,6 +15,8 @@ install: lmao
 	install -Dm644 ./example_hello_world.hell $(DESTDIR)/usr/share/lmao/example_hello_world.hell
 	install -Dm644 ./example_simple_hello_world.hell $(DESTDIR)/usr/share/lmao/example_simple_hello_world.hell
 	install -Dm644 ./example_simple_cat.hell $(DESTDIR)/usr/share/lmao/example_simple_cat.hell
+	install -Dm644 ./example_digital_root.hell $(DESTDIR)/usr/share/lmao/example_digital_root.hell
+	install -Dm644 ./example_adder.hell $(DESTDIR)/usr/share/lmao/example_adder.hell
 
 uninstall:
 	rm -f $(DESTDIR)/usr/bin/lmao
@@ -22,6 +24,8 @@ uninstall:
 	rm -f $(DESTDIR)/usr/share/lmao/example_hello_world.hell
 	rm -f $(DESTDIR)/usr/share/lmao/example_simple_hello_world.hell
 	rm -f $(DESTDIR)/usr/share/lmao/example_simple_cat.hell
+	rm -f $(DESTDIR)/usr/share/lmao/example_digital_root.hell
+	rm -f $(DESTDIR)/usr/share/lmao/example_adder.hell
 	rmdir $(DESTDIR)/usr/share/lmao/
 
 clean:

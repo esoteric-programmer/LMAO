@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
 	FILE* outputfile;
 	HeLLCodePosition unset_position;
 
-	printf("This is LMAO v0.5.6 (Low-level Malbolge Assembler, Ooh!) by Matthias Lutter.\n");
+	printf("This is LMAO v0.5.6b (Low-level Malbolge Assembler, Ooh!) by Matthias Lutter.\n");
 
 	if (!parse_input_args(argc, argv, &line_length, &fast_mode, &output_filename, &input_filename, &debug_filename)){
 		print_usage_message(argc>0?argv[0]:0);
@@ -476,8 +476,11 @@ repeat_building:
 			initialize_code_size = generate_malbolge_initialization_code(opcodes, last_preinitialized_position, entrypoint->offset, program, 0, &execution_steps_until_entry_point,1); /* it may fail, but start with small programs... */
 			program[0] = 0;
 			if (initialize_code_size <= 0) {
-				fprintf(stderr,"An error occured.\n");
-				return 1;
+				// fprintf(stderr,"An error occured.\n");
+				// return 1;
+				// proceed anyway
+				initialize_code_size = (C2*2) / 3; /* it may fail, but start with small programs... */
+				program[0] = 0;
 			}
 		}else{
 			initialize_code_size = (C2*2) / 3; /* it may fail, but start with small programs... */

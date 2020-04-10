@@ -1,0 +1,1176 @@
+/*
+ *	This file is part of LMAO (Low-level Malbolge Assembler, Ooh!), an
+ *	assembler for Malbolge.
+ *	Copyright (C) 2013-2017 Matthias Lutter
+ *
+ *	LMAO is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	LMAO is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *	E-Mail: matthias@lutter.cc
+ *
+ *
+ * Example in HeLL: Adding two 3-digit numbers.
+ *
+ * This HeLL program reads two numbers of up to 3 digits from stdin
+ * and prints out their sum.
+ * Transforming decimal numbers into ternary and back would require to
+ * implement multiplication and modulo operations, which would
+ * slow down the program and probably require more initialization code
+ * than the allowed 59049 bytes.
+ * Thus, this program sums the numbers in their decimal representation.
+ * Therefore, xlat2-cycles (Malbolge instruction cycles) of size 2 and 5
+ * are used to represent each of the three digits.
+ * Summing is done by calling the R_ prefixed instruction of the first
+ * number until the cycle of the second number turns from Nop to MovD.
+ * The resulting cycles represent the sum of the two digits.
+ * They are used as conditions to leave a loop in which the ASCII
+ * character '9' is decremented. In this way, the ASCII representation
+ * to be printed out is generated finally.
+ * 
+ * Unfortunately, this code has not been revised before publication.
+ * Thus, it may be chaotic and hard to understand.
+ * Development of this program has been started with the digital root
+ * program. Some comments may not be adapted properly.
+ */
+
+
+.CODE
+
+// standard malbolge commands
+
+// used with U_-prefix to skip some code
+NOP:
+	Jmp
+
+MOVED:
+	MovD/Nop
+	Jmp
+
+CRAZY:
+	Opr/Nop
+	Jmp
+
+ROT:
+	Rot/Nop
+	Jmp
+
+HALT:
+	Hlt
+
+OUT:
+	Out/Nop
+	Jmp
+
+IN:
+	In/Nop
+	Jmp
+
+// used in increment and decrement subroutines for carry-detection
+@C21 CARRY:
+	RNop
+	RNop
+	Jmp
+
+
+// flags follow
+
+
+// classic return-flags that are used to return to the position where
+// a subroutine (or variable access) has been called
+
+SUBROUTINE_FLAG2:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG3:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG1:
+FLAG1:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG6:
+FLAG2:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG7:
+FLAG3:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG4:
+FLAG4:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG5:
+FLAG5:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG8:
+FLAG8:
+	Nop/MovD
+	Jmp
+
+SUBROUTINE_FLAG9:
+FLAG9:
+	Nop/MovD
+	Jmp
+
+
+// flags that act as loop counter
+
+LOOP2:
+	Nop/MovD
+	Jmp
+
+LOOP2_2:
+	Nop/MovD
+	Jmp
+
+LOOP2_3:
+	Nop/MovD
+	Jmp
+
+LOOP2_4:
+	Nop/MovD
+	Jmp
+
+LOOP5:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+// read input: count down until '0'
+LOOP4_1:
+	Nop/Nop/Nop/MovD
+	Jmp
+
+LOOP4_2:
+	Nop/Nop/Nop/MovD
+	Jmp
+
+LOOP2_special:
+	Nop/MovD
+	Jmp
+
+
+// more sophisticated flags follow below
+
+// flag used inside increment and decrement subroutines.
+// if this is set when the routine returns,
+// it indicates an overflow (add: C2->C0; sub: C0->C2).
+NO_MORE_CARRY_FLAG:
+	Nop/MovD
+	Jmp
+
+// this flag is set to indicate that the user has typed at least
+// one valid digit.
+READ_DIGIT_FLAG:
+	Nop/MovD
+	Jmp
+
+// used during input precessing to indicate that a character is in the
+// ASCII range of digits ('0' until '9').
+// if set, the character should be written into the xlat2-cycles.
+// otherwise, the character should be ignored or treated as separator.
+NUMBER_READ_FLAG:
+	Nop/MovD
+	Jmp
+
+// indicates whether the first or the second number is being read
+// from stdin at the moment
+WAITING_FOR_FIRST_NUMBER_FLAG:
+	MovD/Nop
+	Jmp
+
+// loop through digits of output (3 digits; possible leading 1 from
+// overflow is handled separately)
+PRINT_ALL_DIGITS_LOOP:
+	Nop/Nop/MovD/Nop // print 3 times
+	Jmp
+
+// indicated whether the program is in "print out mode"
+IS_PRINTING_FLAG:
+	Nop/MovD
+	Jmp
+
+// leading zeroes are ignored. if any digit has been printed, this flag
+// is set to indicate that zeroes are now printed as well.
+ANY_DIGIT_HAS_BEEN_PRINTED_FLAG:
+	MovD/Nop
+	Jmp
+
+// if no digit has been printed at all, the last digit is a the leading
+// digit as well. however, in this case it should be printed out, even
+// if it is zero.
+// this flag is used to indicate that case.
+PRINT_ZERO_FLAG:
+	MovD/Nop/Nop/Nop/Nop/Nop/Nop/Nop/Nop
+	Jmp
+
+
+/*** decimal digits/numbers represented by xlat2-cycles follow ***/
+
+// store three digits (DIGIT0..DIGIT2) of NUMBER1 (N1) by
+// two xlat2-cycles each
+
+N1_DIGIT0_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N1_DIGIT0_LOW:
+	Nop/MovD
+	Jmp
+
+N1_DIGIT1_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N1_DIGIT1_LOW:
+	Nop/MovD
+	Jmp
+
+N1_DIGIT2_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N1_DIGIT2_LOW:
+	Nop/MovD
+	Jmp
+
+
+// store three digits (DIGIT0..DIGIT2) of NUMBER2 (N2) by
+// two xlat2-cycles each
+
+N2_DIGIT0_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N2_DIGIT0_LOW:
+	Nop/MovD
+	Jmp
+
+N2_DIGIT1_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N2_DIGIT1_LOW:
+	Nop/MovD
+	Jmp
+
+N2_DIGIT2_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+N2_DIGIT2_LOW:
+	Nop/MovD
+	Jmp
+
+
+// store temporary "tmp" digit in these two xlat2 cycles
+
+TMP_DIGIT_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+TMP_DIGIT_LOW:
+	Nop/MovD
+	Jmp
+
+
+// store temporary "tmp2" digit in these two xlat2 cycles
+// it is used for cloning/shifting while TMP is occupied
+
+TMP2_DIGIT_HIGH:
+	Nop/Nop/Nop/Nop/MovD
+	Jmp
+
+TMP2_DIGIT_LOW:
+	Nop/MovD
+	Jmp
+
+
+// stores an overflow occured during adding of the two numbers.
+// if this flag is set, the result is between 1000 and 1998, thus
+// a leading '1' is forced to be printed out.
+// afterwards, the last 3 digits of the number are printed out normally
+// (with ANY_DIGIT_HAS_BEEN_PRINTED_FLAG set).
+
+OVERFLOW:
+	MovD/Nop
+	Jmp
+
+
+
+.DATA
+/// data section, containing the program logic, but not the numbers,
+/// which are stored in the CODE section.
+/// thus, the semantic purpose of the CODE and DATA section are confused
+/// totally.
+/// however, the sections indicate the kind of Malbolge cells, not their
+/// semantic properties.
+
+
+// var carry
+// carry: this variable stores whether there is an overflow or not
+//        (used by subroutines increment and decrement).
+//        CARRY from .CODE-section will be used to branch dependent on variable value,
+//        which is either CARRY or CARRY+1
+crazy_carry:
+	U_CRAZY carry
+exec_carry:
+	R_MOVED
+carry:
+	CARRY
+	U_NOP execution_not_jumped_to_carry
+	U_NOP carry_was_not_set U_NOP carry_was_set
+carry_was_set:
+	MOVED return_carry_was_set
+carry_was_not_set:
+	MOVED return_carry_was_not_set
+execution_not_jumped_to_carry:
+	FLAG2 return_from_carry_2 R_FLAG2
+return_carry_was_set:
+	FLAG2 return_from_carry_was_set_2 R_FLAG2
+return_carry_was_not_set:
+	FLAG2 return_from_carry_was_not_set_2
+
+
+
+restore_initial_state:
+	R_MOVED //destroy moved (for reset_value_loop)
+restore_initial_state_and_moved:
+	READ_DIGIT_FLAG restore_initial_state_and_moved
+	R_READ_DIGIT_FLAG
+	// write C1 into value and value_C1.
+	ROT C1 R_ROT
+reset_value_loop:
+	R_MOVED
+crazy_value:
+	U_CRAZY value
+rot_value:
+	U_ROT value
+value:
+	C1
+	FLAG2 return_from_value_2 R_FLAG2
+	FLAG3 return_from_value_3 R_FLAG3
+	FLAG4 return_from_value_4 R_FLAG4
+	FLAG5 return_from_value_5 R_FLAG5
+	FLAG8 return_from_value_8 R_FLAG8
+	FLAG9 return_from_value_9 R_FLAG9
+return_from_value_1:
+	R_CRAZY
+	LOOP2 value_reset
+	MOVED reset_value_loop
+
+value_reset:
+	R_MOVED
+reset_value_C1_loop:
+	R_MOVED
+crazy_value_C1:
+	U_CRAZY value_C1
+rot_value_C1:
+	U_ROT value_C1
+value_C1:
+	C1
+	FLAG2 return_from_value_C1_2 R_FLAG2
+return_from_value_C1_1:
+	R_CRAZY
+	LOOP2 value_C1_reset
+	MOVED reset_value_C1_loop
+
+
+restore_tmp_digit_high:
+	R_MOVED
+value_C1_reset:
+	TMP_DIGIT_HIGH restore_tmp_digit_high_done
+	MOVED restore_tmp_digit_high
+
+restore_tmp_digit_low:
+	R_MOVED
+restore_tmp_digit_high_done:
+	TMP_DIGIT_LOW restore_tmp_digit_low_done
+	MOVED restore_tmp_digit_low
+
+restore_tmp_digit_low_done:
+ENTRY:
+	// read character from stdin and store it in value_C1 and then in value
+	IN ?- R_IN
+	R_FLAG2
+	MOVED crazy_value_C1
+	
+return_from_value_C1_2:
+	R_CRAZY R_MOVED
+	R_FLAG2
+	MOVED crazy_value
+
+return_from_value_2:
+	R_CRAZY R_MOVED
+	// decrement to determine actual value
+	R_SUBROUTINE_FLAG1
+	MOVED decrement_value
+
+
+{
+decrement_compare_loop:
+	R_MOVED
+	// decrement value until an overflow is reached
+	// by using LOOPs from the .CODE-section,
+	// we can branch dependent on the number of decrements done so far
+	R_SUBROUTINE_FLAG1
+	MOVED decrement_value
+return_from_decrement_value_1:
+	NO_MORE_CARRY_FLAG no_decrement_overflow
+	MOVED decrement_overflow_detected
+}
+
+no_decrement_overflow:
+;	NO_EXIT_FLAG no_decrement_overflow
+;	R_NO_EXIT_FLAG
+	// if we have reached the number of decrements for ASCII character '1' before,
+	// every further decrement cycle tells us that the number we read is one greater than we thought
+	READ_DIGIT_FLAG increment_digit R_READ_DIGIT_FLAG
+	// if '1' has not yet been reached, we jump into LOOP5_2 every 5th decrement step.
+	LOOP4_1 outer4loop
+	MOVED decrement_compare_loop
+
+outer4loop:
+	// jump into inner5loop every 5th steo again.
+	// so it will be executed every 25th decrement step
+	LOOP4_2 middle4loop
+	MOVED decrement_compare_loop
+
+middle4loop:
+	// jump into inner5loop every 5th steo again.
+	// so it will be executed every 25th decrement step
+	LOOP2_special inner2loop
+	MOVED decrement_compare_loop
+
+inner2loop:
+;	NO_EXIT_FLAG inner2loop // at least a space has been read (?)
+	R_LOOP2_special // only one more time!
+	// we read an ASCII character of value at least 24.
+	// therefore we did not read EOF or newline, so we shall not output
+	// the digital root right now. we store this by forcing the NO_EXIT_FLAG to be set.
+	// every second step (50 decrements executed) we go into the innerst loop
+	LOOP2_4 innerst2loop
+	MOVED decrement_compare_loop
+
+innerst2loop:
+	// when we get here the first time, we read an ASCII value at least 49,
+	// which is '1'. So we set the READ_DIGIT_FLAG to indicate we read such a digit.
+	R_READ_DIGIT_FLAG
+	MOVED decrement_compare_loop
+
+increment_digit:
+;	NO_EXIT_FLAG increment_digit
+	// restore R_READ_DIGIT_FLAG
+	R_READ_DIGIT_FLAG
+	// increment digit (stored in TMP_DIGIT) by calling TMP_DIGIT:
+	// the next element of the MovD-cycle is set
+	// if TMP_DIGIT was set to MovD before, this is the 9th increment - we did
+	// not read a digit from '1' to '9', but an ASCII character that is greater than '9'.
+	// then we abort parsing the current input character and read another one.
+	TMP_DIGIT_LOW tmp_digit_overflow_low
+	MOVED decrement_compare_loop
+
+tmp_digit_overflow_low:
+	TMP_DIGIT_HIGH exitloop
+	MOVED decrement_compare_loop
+
+exitloop:
+;	NO_EXIT_FLAG exitloop
+;	R_NO_EXIT_FLAG
+	// reset READ_DIGIT_FLAG and leave input-parsing decrement-loop
+	R_READ_DIGIT_FLAG
+	MOVED decrement_overflow_detected
+
+
+// this is the exit label for the input character recognition above.
+decrement_overflow_detected:
+// at first, we restore the LOOPs, so we could use them again.
+restore_2_loop2:
+	R_MOVED
+restore_5_loop2_done:
+	LOOP2_4 restore_2_loop2_done
+	MOVED restore_2_loop2
+
+restore_loop4:
+	R_MOVED
+restore_2_loop2_done:
+	LOOP4_1 restore_loop4_done
+	MOVED restore_loop4
+
+restore_2_loop4:
+	R_MOVED
+restore_loop4_done:
+	LOOP4_2 restore_2_loop4_done
+	MOVED restore_2_loop4
+
+restore_special_loop2:
+	R_MOVED
+restore_2_loop4_done:
+	LOOP2_special restore_special_loop2_done
+	MOVED restore_special_loop2
+
+
+restore_special_loop2_done:
+	// now we test whether we shall output the current digital root
+	// or adapt it and read the next character
+;	NO_EXIT_FLAG process_input // adapt current digital root
+	READ_DIGIT_FLAG process_input_digit
+	MOVED process_input_nondigit // print out digital root and exit
+
+process_input_nondigit:
+	R_MOVED
+	NUMBER_READ_FLAG process_input_number
+	NUMBER_READ_FLAG restore_initial_state
+
+process_input_number:
+	WAITING_FOR_FIRST_NUMBER_FLAG read_first_number
+	WAITING_FOR_FIRST_NUMBER_FLAG read_second_number
+
+read_first_number:
+	R_NUMBER_READ_FLAG
+	NUMBER_READ_FLAG restore_initial_state
+
+read_second_number:
+	// ADD NUMBERS AND PRINT RESULT
+	R_SUBROUTINE_FLAG3
+	MOVED clear_tmp2
+
+
+process_input_digit:
+	NUMBER_READ_FLAG process_input_digit // a number has been read
+	// shift tmp_digit into number (n1 or n2)
+	WAITING_FOR_FIRST_NUMBER_FLAG append_tmp_digit_to_first_number // and restore WAITING_FOR_FIRST_NUMBER_FLAG
+	WAITING_FOR_FIRST_NUMBER_FLAG append_tmp_digit_to_second_number
+
+// shift digit...
+append_tmp_digit_to_first_number:
+	R_WAITING_FOR_FIRST_NUMBER_FLAG
+	MOVED clear_n1_msd
+
+append_tmp_digit_to_second_number:
+	MOVED clear_n2_msd
+
+
+return_clear_tmp2_3:
+	;R_N2_DIGIT0_LOW
+	N2_DIGIT0_LOW add_n2_digit0_to_n1_digit0_5
+	MOVED add_n2_digit0_to_n1_digit0_2
+
+add_n2_digit0_to_n1_digit0_5:
+	N1_DIGIT0_LOW add_n2_digit0_to_n1_digit0_overflow_low
+	MOVED add_n2_digit0_to_n1_digit0_2
+
+add_n2_digit0_to_n1_digit0_overflow_low:
+	R_OVERFLOW
+	MOVED add_n2_digit0_to_n1_digit0_2
+
+
+
+add_n2_digit0_to_n1_digit0_2:
+	R_MOVED
+// now the digits have to be added...
+	N2_DIGIT0_HIGH add_n2_digit0_to_n1_digit0_1
+	R_TMP2_DIGIT_HIGH
+	MOVED add_n2_digit0_to_n1_digit0_2
+
+
+
+add_n2_digit0_to_n1_digit0_1:
+	OVERFLOW add_n2_digit0_to_n1_digit0_6
+	N1_DIGIT0_HIGH add_n2_digit0_to_n1_digit0_6
+	R_OVERFLOW
+add_n2_digit0_to_n1_digit0_6:
+	R_OVERFLOW
+	R_MOVED
+add_n2_digit0_to_n1_digit0_4:
+	R_MOVED
+	TMP2_DIGIT_HIGH add_n2_digit1_to_n1_digit1 // NEXT DIGIT
+	N1_DIGIT0_HIGH add_n2_digit0_to_n1_digit0_6
+	MOVED add_n2_digit0_to_n1_digit0_4
+
+
+add_n2_digit1_to_n1_digit1:
+	R_SUBROUTINE_FLAG6
+	MOVED clear_tmp2
+
+
+return_clear_tmp2_6:
+add_n2_digit1_to_n1_digit1_3:
+	OVERFLOW add_n2_digit1_to_n1_digit1_overflow_low2
+	N1_DIGIT1_LOW add_n2_digit1_to_n1_digit1_overflow_low2
+	R_OVERFLOW
+add_n2_digit1_to_n1_digit1_overflow_low2:
+	R_OVERFLOW
+	N2_DIGIT1_LOW add_n2_digit1_to_n1_digit1_5
+	MOVED add_n2_digit1_to_n1_digit1_2
+
+add_n2_digit1_to_n1_digit1_5:
+	N1_DIGIT1_LOW add_n2_digit1_to_n1_digit1_overflow_low
+	MOVED add_n2_digit1_to_n1_digit1_2
+
+add_n2_digit1_to_n1_digit1_overflow_low:
+	R_OVERFLOW
+	MOVED add_n2_digit1_to_n1_digit1_2
+
+
+
+add_n2_digit1_to_n1_digit1_2:
+	R_MOVED
+// now the digits have to be added...
+	N2_DIGIT1_HIGH add_n2_digit1_to_n1_digit1_1
+	R_TMP2_DIGIT_HIGH
+	MOVED add_n2_digit1_to_n1_digit1_2
+
+
+
+add_n2_digit1_to_n1_digit1_1:
+	OVERFLOW add_n2_digit1_to_n1_digit1_6
+	N1_DIGIT1_HIGH add_n2_digit1_to_n1_digit1_6
+	R_OVERFLOW
+add_n2_digit1_to_n1_digit1_6:
+	R_OVERFLOW
+	R_MOVED
+add_n2_digit1_to_n1_digit1_4:
+	R_MOVED
+	TMP2_DIGIT_HIGH add_n2_digit2_to_n1_digit2 ;NEXT DIGIT
+	N1_DIGIT1_HIGH add_n2_digit1_to_n1_digit1_6
+	MOVED add_n2_digit1_to_n1_digit1_4
+
+
+
+add_n2_digit2_to_n1_digit2:
+	R_SUBROUTINE_FLAG9
+	MOVED clear_tmp2
+
+
+return_clear_tmp2_9:
+add_n2_digit2_to_n1_digit2_3:
+	OVERFLOW add_n2_digit2_to_n1_digit2_overflow_low2
+	N1_DIGIT2_LOW add_n2_digit2_to_n1_digit2_overflow_low2
+	R_OVERFLOW
+add_n2_digit2_to_n1_digit2_overflow_low2:
+	R_OVERFLOW
+	N2_DIGIT2_LOW add_n2_digit2_to_n1_digit2_5
+	MOVED add_n2_digit2_to_n1_digit2_2
+
+add_n2_digit2_to_n1_digit2_5:
+	N1_DIGIT2_LOW add_n2_digit2_to_n1_digit2_overflow_low
+	MOVED add_n2_digit2_to_n1_digit2_2
+
+add_n2_digit2_to_n1_digit2_overflow_low:
+	R_OVERFLOW
+	MOVED add_n2_digit2_to_n1_digit2_2
+
+
+
+add_n2_digit2_to_n1_digit2_2:
+	R_MOVED
+// now the digits have to be added...
+	N2_DIGIT2_HIGH add_n2_digit2_to_n1_digit2_1
+	R_TMP2_DIGIT_HIGH
+	MOVED add_n2_digit2_to_n1_digit2_2
+
+
+
+add_n2_digit2_to_n1_digit2_1:
+	OVERFLOW add_n2_digit2_to_n1_digit2_6
+	N1_DIGIT2_HIGH add_n2_digit2_to_n1_digit2_6
+	R_OVERFLOW
+add_n2_digit2_to_n1_digit2_6:
+	R_OVERFLOW
+	R_MOVED
+add_n2_digit2_to_n1_digit2_4:
+	R_MOVED
+	TMP2_DIGIT_HIGH add_n2_digit2_to_n1_digit2_fin
+	N1_DIGIT2_HIGH add_n2_digit2_to_n1_digit2_6
+	MOVED add_n2_digit2_to_n1_digit2_4
+
+
+
+
+
+
+add_n2_digit2_to_n1_digit2_fin:
+	R_OVERFLOW
+	OVERFLOW print_leading_one
+	MOVED print_result
+
+
+print_leading_one:
+	// do not process
+	ROT '1'<<1 R_ROT OUT ?- R_OUT
+	R_ANY_DIGIT_HAS_BEEN_PRINTED_FLAG
+	MOVED print_result
+
+
+
+
+
+
+// MSD of N1 is DIGIT2.
+clear_n1_msd: // clear most significant digit of n1
+n1_msd_high_clearloop:
+	R_MOVED
+	N1_DIGIT2_HIGH n1_msd_high_cleared
+	MOVED n1_msd_high_clearloop
+
+n1_msd_high_cleared:
+	N1_DIGIT2_LOW n1_msd_high_cleared
+	R_N1_DIGIT2_LOW
+// now the digit is cleared
+// clear TMP2
+	R_SUBROUTINE_FLAG1
+	MOVED clear_tmp2
+
+
+clone_n1_digit1_digit_to_n1_digit2_2:
+	R_MOVED
+return_clear_tmp2:
+// now the digits have to be shifted...
+clone_n1_digit1_digit_to_n1_digit2:
+	N1_DIGIT1_HIGH clone_n1_digit1_digit_to_n1_digit2_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_n1_digit1_digit_to_n1_digit2_2
+
+clone_n1_digit1_digit_to_n1_digit2_4:
+	R_MOVED
+clone_n1_digit1_digit_to_n1_digit2_1:
+	TMP2_DIGIT_HIGH clone_n1_digit1_digit_to_n1_digit2_3
+	R_N1_DIGIT2_HIGH
+	MOVED clone_n1_digit1_digit_to_n1_digit2_4
+
+clone_n1_digit1_digit_to_n1_digit2_3:
+	// high has bee cloned. now clone low.
+	R_N1_DIGIT2_LOW
+	N1_DIGIT1_LOW clone_n1_digit1_digit_to_n1_digit2_5
+	R_N1_DIGIT2_LOW
+	R_N1_DIGIT1_LOW
+clone_n1_digit1_digit_to_n1_digit2_5:
+	// done.
+	R_SUBROUTINE_FLAG7
+	MOVED clear_tmp2
+
+
+clone_n1_digit0_digit_to_n1_digit1_2:
+	R_MOVED
+return_clear_tmp2_7:
+// now the digits have to be shifted...
+clone_n1_digit0_digit_to_n1_digit1:
+	N1_DIGIT0_HIGH clone_n1_digit0_digit_to_n1_digit1_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_n1_digit0_digit_to_n1_digit1_2
+
+clone_n1_digit0_digit_to_n1_digit1_4:
+	R_MOVED
+clone_n1_digit0_digit_to_n1_digit1_1:
+	TMP2_DIGIT_HIGH clone_n1_digit0_digit_to_n1_digit1_3
+	R_N1_DIGIT1_HIGH
+	MOVED clone_n1_digit0_digit_to_n1_digit1_4
+
+clone_n1_digit0_digit_to_n1_digit1_3:
+	// high has bee cloned. now clone low.
+	R_N1_DIGIT1_LOW
+	N1_DIGIT0_LOW clone_n1_digit0_digit_to_n1_digit1_5
+	R_N1_DIGIT1_LOW
+	R_N1_DIGIT0_LOW
+clone_n1_digit0_digit_to_n1_digit1_5:
+	// done.
+	R_SUBROUTINE_FLAG4
+	MOVED clear_tmp2
+
+
+clone_tmp_digit_to_n1_digit0_2:
+	R_MOVED
+// now, TMP_DIGIT has to be shifted into LSD (least sognificant digit) of N1.
+return_clear_tmp2_4:
+clone_tmp_digit_to_n1_digit0:
+	TMP_DIGIT_HIGH clone_tmp_digit_to_n1_digit0_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_tmp_digit_to_n1_digit0_2
+
+clone_tmp_digit_to_n1_digit0_4:
+	R_MOVED
+clone_tmp_digit_to_n1_digit0_1:
+	TMP2_DIGIT_HIGH clone_tmp_digit_to_n1_digit0_3
+	R_N1_DIGIT0_HIGH
+	MOVED clone_tmp_digit_to_n1_digit0_4
+
+clone_tmp_digit_to_n1_digit0_3:
+	// high has bee cloned. now clone low.
+	R_N1_DIGIT0_LOW
+	TMP_DIGIT_LOW clone_tmp_digit_to_n1_digit0_5
+	R_N1_DIGIT0_LOW
+clone_tmp_digit_to_n1_digit0_5:
+	// done.
+	IS_PRINTING_FLAG print_next R_IS_PRINTING_FLAG
+	MOVED restore_initial_state_and_moved
+
+
+
+// MSD of N2 is DIGIT2.
+clear_n2_msd: // clear most significant digit of n1
+n2_msd_high_clearloop:
+	R_MOVED
+	N2_DIGIT2_HIGH n2_msd_high_cleared
+	MOVED n2_msd_high_clearloop
+
+n2_msd_high_cleared:
+	N2_DIGIT2_LOW n2_msd_high_cleared
+	R_N2_DIGIT2_LOW
+// now the digit is cleared
+// clear TMP2
+	R_SUBROUTINE_FLAG2
+	MOVED clear_tmp2
+
+
+
+
+
+clone_n2_digit1_digit_to_n2_digit2_2:
+	R_MOVED
+return_clear_tmp2_2:
+// now the digits has to be shifted...
+clone_n2_digit1_digit_to_n2_digit2:
+	N2_DIGIT1_HIGH clone_n2_digit1_digit_to_n2_digit2_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_n2_digit1_digit_to_n2_digit2_2
+
+clone_n2_digit1_digit_to_n2_digit2_4:
+	R_MOVED
+clone_n2_digit1_digit_to_n2_digit2_1:
+	TMP2_DIGIT_HIGH clone_n2_digit1_digit_to_n2_digit2_3
+	R_N2_DIGIT2_HIGH
+	MOVED clone_n2_digit1_digit_to_n2_digit2_4
+
+clone_n2_digit1_digit_to_n2_digit2_3:
+	// high has bee cloned. now clone low.
+	R_N2_DIGIT2_LOW
+	N2_DIGIT1_LOW clone_n2_digit1_digit_to_n2_digit2_5
+	R_N2_DIGIT2_LOW
+	R_N2_DIGIT1_LOW
+clone_n2_digit1_digit_to_n2_digit2_5:
+	// done.
+	R_SUBROUTINE_FLAG8
+	MOVED clear_tmp2
+
+
+
+
+clone_n2_digit0_digit_to_n2_digit1_2:
+	R_MOVED
+return_clear_tmp2_8:
+// now the digits has to be shifted...
+clone_n2_digit0_digit_to_n2_digit1:
+	N2_DIGIT0_HIGH clone_n2_digit0_digit_to_n2_digit1_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_n2_digit0_digit_to_n2_digit1_2
+
+clone_n2_digit0_digit_to_n2_digit1_4:
+	R_MOVED
+clone_n2_digit0_digit_to_n2_digit1_1:
+	TMP2_DIGIT_HIGH clone_n2_digit0_digit_to_n2_digit1_3
+	R_N2_DIGIT1_HIGH
+	MOVED clone_n2_digit0_digit_to_n2_digit1_4
+
+clone_n2_digit0_digit_to_n2_digit1_3:
+	// high has bee cloned. now clone low.
+	R_N2_DIGIT1_LOW
+	N2_DIGIT0_LOW clone_n2_digit0_digit_to_n2_digit1_5
+	R_N2_DIGIT1_LOW
+	R_N2_DIGIT0_LOW
+clone_n2_digit0_digit_to_n2_digit1_5:
+	// done.
+	R_SUBROUTINE_FLAG5
+	MOVED clear_tmp2
+
+
+clone_tmp_digit_to_n2_digit0_2:
+	R_MOVED
+return_clear_tmp2_5:
+// now , TMP_DIGIT has to be shifted into LSD (least sognificant digit) of N1.
+clone_tmp_digit_to_n2_digit0:
+	TMP_DIGIT_HIGH clone_tmp_digit_to_n2_digit0_1
+	R_TMP2_DIGIT_HIGH
+	MOVED clone_tmp_digit_to_n2_digit0_2
+
+clone_tmp_digit_to_n2_digit0_4:
+	R_MOVED
+clone_tmp_digit_to_n2_digit0_1:
+	TMP2_DIGIT_HIGH clone_tmp_digit_to_n2_digit0_3
+	R_N2_DIGIT0_HIGH
+	MOVED clone_tmp_digit_to_n2_digit0_4
+
+clone_tmp_digit_to_n2_digit0_3:
+	// high has bee cloned. now clone low.
+	R_N2_DIGIT0_LOW
+	TMP_DIGIT_LOW clone_tmp_digit_to_n2_digit0_5
+	R_N2_DIGIT0_LOW
+clone_tmp_digit_to_n2_digit0_5:
+	// done.
+	MOVED restore_initial_state_and_moved
+
+
+
+
+
+clear_tmp2:
+	R_MOVED
+	TMP2_DIGIT_HIGH tmp2_high_cleared
+	MOVED clear_tmp2
+
+tmp2_high_cleared:
+	TMP2_DIGIT_LOW tmp2_high_cleared
+	R_TMP2_DIGIT_LOW
+	// return
+	SUBROUTINE_FLAG1 return_clear_tmp2 R_SUBROUTINE_FLAG1
+	SUBROUTINE_FLAG2 return_clear_tmp2_2 R_SUBROUTINE_FLAG2
+	SUBROUTINE_FLAG3 return_clear_tmp2_3 R_SUBROUTINE_FLAG3
+	SUBROUTINE_FLAG4 return_clear_tmp2_4 R_SUBROUTINE_FLAG4
+	SUBROUTINE_FLAG5 return_clear_tmp2_5 R_SUBROUTINE_FLAG5
+	SUBROUTINE_FLAG6 return_clear_tmp2_6 R_SUBROUTINE_FLAG6
+	SUBROUTINE_FLAG7 return_clear_tmp2_7 R_SUBROUTINE_FLAG7
+	SUBROUTINE_FLAG8 return_clear_tmp2_8 R_SUBROUTINE_FLAG8
+	SUBROUTINE_FLAG9 return_clear_tmp2_9
+
+
+;N1_DIGIT0_HIGH (Nop/Nop/Nop/Nop/MovD)
+;N1_DIGIT0_LOW (Nop/MovD)
+;
+;N2_DIGIT0_HIGH (Nop/Nop/Nop/Nop/MovD)
+;N2_DIGIT0_LOW (Nop/MovD)
+;
+;TMP2_DIGIT_HIGH
+;TMP2_DIGIT_LOW
+
+
+
+
+// start printing the MSD.
+// then shift number and print it again - and so on.
+// test whether it is zero, then don't print (except the whole number is 0).
+print_next:
+	R_MOVED
+print_result:
+	LOOP2 print_result
+	R_LOOP2
+restore_zf_loop:
+	PRINT_ZERO_FLAG restore_zf_done
+	R_MOVED
+	MOVED restore_zf_loop
+restore_zf_done:
+	// set value to '9'.
+	// therefore, reset it to C1 first.
+	ROT C1 R_ROT
+just_another_reset_value_loop:
+	R_MOVED
+	R_FLAG3
+	MOVED crazy_value
+
+return_from_value_3:
+	R_CRAZY R_MOVED
+	LOOP2 continue_printing
+	MOVED just_another_reset_value_loop
+
+continue_printing:
+	TMP_DIGIT_LOW continue_printing
+	R_LOOP2
+	// now set value to '0' by crazy operator
+load_9_char:
+	ROT C2 R_ROT
+	CRAZY '9'!C1 R_CRAZY
+	LOOP2 load_9_char
+	R_FLAG4
+	MOVED crazy_value
+
+{
+return_from_value_4:
+	R_CRAZY
+	// now we may have to increment value until DIGIT tells us to abort
+	// therefore we test whether we should output '0' or not
+
+	// we must not output '0', we decrement value in a do-while loop
+	// until DIGIT becomes MovD.
+decrement_digit_loop:
+	R_MOVED
+	N1_DIGIT2_HIGH leave_high_decrement_loop
+decrement_two_times:
+	R_SUBROUTINE_FLAG2
+	R_PRINT_ZERO_FLAG
+	MOVED decrement_value
+}
+
+return_from_decrement_value_2:
+	// test whether we can leave the increment loop
+	TMP_DIGIT_LOW decrement_two_times
+	MOVED decrement_digit_loop
+
+
+leave_high_decrement_loop:
+	;TMP_DIGIT_LOW leave_high_decrement_loop
+	R_TMP_DIGIT_LOW
+	N1_DIGIT2_LOW print_out_value_no_movd_restore
+	PRINT_ZERO_FLAG maybe_no_print
+do_print:
+	R_SUBROUTINE_FLAG3
+	MOVED decrement_value
+
+maybe_no_print:
+	ANY_DIGIT_HAS_BEEN_PRINTED_FLAG really_no_print
+	ANY_DIGIT_HAS_BEEN_PRINTED_FLAG do_print
+	
+really_no_print:
+	R_ANY_DIGIT_HAS_BEEN_PRINTED_FLAG
+	MOVED continue_printing_next
+
+print_out_value:
+	R_MOVED
+return_from_decrement_value_3:
+print_out_value_no_movd_restore:
+	// load value and print it.
+	// load it by crazying C2 into it twice.
+	ROT C2 R_ROT
+	R_FLAG5
+	MOVED crazy_value
+
+return_from_value_5:
+	R_CRAZY
+	TMP_DIGIT_LOW print_out_now
+	R_MOVED
+	MOVED print_out_value
+
+print_out_now:
+	// print value
+	OUT ?- R_OUT
+print_set_flag:
+	ANY_DIGIT_HAS_BEEN_PRINTED_FLAG print_set_flag
+	R_ANY_DIGIT_HAS_BEEN_PRINTED_FLAG
+continue_printing_next:
+	R_MOVED
+	PRINT_ALL_DIGITS_LOOP print_done
+	R_IS_PRINTING_FLAG
+	MOVED clear_n1_msd
+	// print line break
+
+print_done:
+	R_ANY_DIGIT_HAS_BEEN_PRINTED_FLAG
+	ANY_DIGIT_HAS_BEEN_PRINTED_FLAG print_ln_break
+	ROT '0' << 1 R_ROT
+	OUT ?- R_OUT
+print_ln_break:
+	ROT '\n' << 1
+	OUT ?-
+	HALT
+
+
+// now the subroutine for decrement of value follows
+
+decrement_value:
+	MOVED decrement_value
+decrement_value_intern_2:
+	LOOP2 decrement_value_intern_2
+	R_LOOP2
+decrement_value_intern_3:
+	LOOP2_2 decrement_value_intern_3
+	R_LOOP2_2
+decrement_value_intern_4:
+	LOOP2_3 decrement_value_intern_4
+	R_LOOP2_3
+decrement_value_intern_5:
+	MOVED decrement_value_intern_5
+	LOOP5 decrement_value_intern_6
+	MOVED decrement_value_intern_5
+decrement_value_intern_6:
+	R_MOVED
+decrement_value_intern:
+	// kill NO_MORE_CARRY_FLAG
+	NO_MORE_CARRY_FLAG nomorecarrykilled_2 R_NO_MORE_CARRY_FLAG
+nomorecarrykilled_2:
+	// We have to set tmp to C0. It won't contain any trit that is 2, so we can just crazy C1 into tmp.
+	R_MOVED
+	ROT C1 R_ROT
+crazy_tmp:
+	U_CRAZY tmp
+tmp:
+	C0 // must not contain any trit that is 2.
+	FLAG4 return_from_tmp_4 R_FLAG4
+return_from_tmp_3:
+	R_CRAZY R_MOVED
+value_load_loop:
+	ROT C2 R_ROT
+jmp_into_loop_from_behind:
+	R_MOVED
+	R_FLAG8
+	MOVED crazy_value
+
+return_from_value_8:
+	R_CRAZY R_MOVED
+	LOOP2 value_loaded
+	MOVED value_load_loop
+
+value_loaded:
+	LOOP2_2 jump_back_to_behind
+	R_FLAG4 // set return flag
+	MOVED crazy_tmp
+
+return_from_tmp_4:
+	R_CRAZY R_MOVED
+	R_FLAG2 // set return flag
+	MOVED crazy_carry
+
+return_from_carry_2:
+	R_CRAZY R_MOVED
+	MOVED jmp_into_loop_from_behind
+
+jump_back_to_behind:
+	R_FLAG2
+	MOVED exec_carry
+
+return_from_carry_was_not_set_2:
+	R_NO_MORE_CARRY_FLAG
+return_from_carry_was_set_2:
+	R_MOVED
+	// rotate string_ptr until it has been rotated 10 times.
+	// after rotating go to increment or rotate again corresponding to the NO_MORE_CARRY_FLAG
+	R_FLAG9 // set return flag
+	MOVED rot_value // rot string_ptr
+
+return_from_value_9:
+	R_MOVED R_ROT
+	// exit loop after 5 times
+	LOOP5 exit_inner_decrement_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value_2 R_NO_MORE_CARRY_FLAG
+	MOVED decrement_value_intern
+
+exit_inner_decrement_loop:
+	// exit loop after 2 times
+	LOOP2_3 exit_decrement_loop
+	NO_MORE_CARRY_FLAG restore_no_more_carry_flag_and_rotate_value_2 R_NO_MORE_CARRY_FLAG
+	MOVED decrement_value_intern
+
+restore_no_more_carry_flag_and_rotate_value_2:
+	R_NO_MORE_CARRY_FLAG
+	MOVED return_from_carry_was_set_2
+
+exit_decrement_loop:
+	SUBROUTINE_FLAG1 return_from_decrement_value_1 R_SUBROUTINE_FLAG1
+	SUBROUTINE_FLAG2 return_from_decrement_value_2 R_SUBROUTINE_FLAG2
+	SUBROUTINE_FLAG3 return_from_decrement_value_3
+
